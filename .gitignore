@@ -1,0 +1,6 @@
+/wasm/target/
+/wasm/*.wasm
+/lib/dewasm/merman/wasm_module.rb
+/pkg/
+*.gem
+Gemfile.lock
