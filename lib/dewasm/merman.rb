@@ -80,7 +80,7 @@ module Dewasm
     end
 
     # Renders terminal text, or nil when the text is not a recognized diagram.
-    def render_ascii(text, charset: :unicode, strict_parsing: false, fixed_today: nil,
+    def render_ascii(text, charset: :unicode, strict_parsing: nil, fixed_today: nil,
                      fixed_local_offset_minutes: nil, site_config: nil, random: Random,
                      **ascii_options)
       unknown = ascii_options.keys - ASCII_OPTIONS

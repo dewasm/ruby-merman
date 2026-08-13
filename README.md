@@ -116,7 +116,7 @@ Options on `render_ascii`:
 | Option | Default | merman |
 | --- | --- | --- |
 | `charset:` | `:unicode` | `AsciiRenderOptions#charset`, `:unicode` or `:ascii` |
-| `strict_parsing:` | `false` | `with_strict_parsing` when true, `with_lenient_parsing` when false |
+| `strict_parsing:` | `nil` | `nil` keeps merman's own parse default; `with_strict_parsing` when true, `with_lenient_parsing` when false |
 | `fixed_today:` | `nil` | `with_fixed_today`, a `Date` |
 | `fixed_local_offset_minutes:` | `nil` | `with_fixed_local_offset_minutes` |
 | `site_config:` | `nil` | `with_site_config` |

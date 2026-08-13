@@ -5,7 +5,7 @@ require "rake/testtask"
 WASM_SOURCE = "wasm/target/wasm32-wasip1/release/merman_wasm.wasm"
 WASM = "wasm/merman.wasm"
 GENERATED = "lib/dewasm/merman/wasm_module.rb"
-DEWASM = ENV.fetch("DEWASM_BIN", "/Users/makenowjust/Projects/github.com/dewasm/dewasm/target/release/dewasm")
+DEWASM = ENV.fetch("DEWASM_BIN", File.expand_path("../dewasm/target/release/dewasm", __dir__))
 
 file WASM_SOURCE => FileList["wasm/src/*.rs", "wasm/Cargo.toml", "wasm/Cargo.lock"] do
   sh "cargo build --release --target wasm32-wasip1 --manifest-path wasm/Cargo.toml"
