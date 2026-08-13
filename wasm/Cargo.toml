@@ -1,0 +1,21 @@
+[package]
+name = "merman-wasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# The merman family publishes alpha crates that move independently, so every one
+# of them is pinned exactly and Cargo.lock is committed.
+[dependencies]
+merman = { version = "=0.8.0-alpha.3", features = ["render", "ascii"] }
+chrono = { version = "0.4.45", features = ["std"], default-features = false }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
