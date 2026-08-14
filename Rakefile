@@ -27,8 +27,6 @@ file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/snapshot_ut
   sh RbConfig.ruby, "tools/capture_snapshot.rb"
 end
 
-Dir["tasks/*.rake"].sort.each { |path| load path }
-
 namespace :wasm do
   desc "Build wasm/merman.wasm from the Rust wrapper crate"
   task build: WASM
@@ -41,6 +39,11 @@ Rake::TestTask.new(test: :generate) do |t|
   t.libs = %w[lib test]
   t.test_files = FileList["test/**/*_test.rb"]
   t.warning = false
+end
+
+desc "Measure sizes, memory, and speed, and rewrite the table in README.md"
+task measure: :generate do
+  sh RbConfig.ruby, "tools/measure.rb"
 end
 
 desc "Build the gem"

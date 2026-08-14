@@ -5,6 +5,10 @@
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
 There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
+The gem is built from merman 0.8.0-alpha.5 on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
+Two cargo features are enabled, `complete-svg` and `ascii`; `complete-svg` comprises `svg`, `layout-cytoscape`, `layout-elk`, and `math`.
+merman's raster output features are not built in, so this gem renders SVG and terminal text only.
+
 ## Install
 
 ```console
@@ -74,7 +78,7 @@ MERMAID
 
 ## Diagram types
 
-The build enables merman's `complete-svg` and `ascii` features, which is merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
+The enabled features are merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
 `render_ascii` covers the subset merman renders as terminal text; asking it for another type raises `Dewasm::Merman::Error`.
 
 Railroad grammar diagrams take one of four dialect headers: `railroad-beta` for merman's own grammar function syntax, `railroad-ebnf-beta` for EBNF, `railroad-abnf-beta` for ABNF, and `railroad-peg-beta` for PEG.
@@ -122,9 +126,8 @@ svg = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random:
 
 ## API
 
-Every function is a one-shot module function: it creates a wasm module instance, restores the shipped state snapshot into it, injects a fresh hash seed, renders, and returns.
-No instance is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize.
-The snapshot itself is read once per process and only ever copied from.
+A single call renders the given diagram text to SVG or to terminal text.
+The table maps each function to the merman API it wraps.
 
 | Ruby | merman |
 | --- | --- |
@@ -208,8 +211,25 @@ $ rake test
 `rake generate` needs a dewasm binary; the path comes from the `DEWASM_BIN` environment variable.
 The dewasm revision these instructions were verified against is recorded in `DEWASM_REVISION`.
 
-The merman version is pinned exactly in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
 `wasm/Cargo.lock` is committed because merman's sibling crates publish alpha versions that move independently, and a mixed set does not compile.
+
+## Snapshot
+
+Every function is a one-shot module function: it creates a wasm module instance, restores the shipped state snapshot into it, injects a fresh hash seed, renders, and returns.
+No instance is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize.
+The snapshot itself is read once per process and only ever copied from.
+
+The snapshot is what keeps a render from paying merman's initialization.
+merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
+The build does one render, captures the module state it leaves behind, and ships it as `snapshot.bin.gz`; each call restores that state into its fresh instance instead of building it again, so the initialization is paid once at build time rather than on every render.
+The state is the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
+A missing snapshot file, or one of another version, is an error asking for `rake generate`: there is no second path that would render the same output more slowly.
+
+The one thing a restored instance must not share with every other instance is the hash seed merman drew while initializing.
+The build records where in memory that seed sits, and every render writes bytes from its `random:` source over it, so each render hashes with a seed of its own while the tables built around the old one keep working.
+Recording the offset is a search for the exact bytes the build handed out, and it insists on finding them in exactly one place, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
+
+The imports the wasm module declares are all resolved to stubs that raise `Dewasm::Merman::Error`, and none of them fires while rendering: a render reads no clock, no environment, no file, and no operating system randomness, so it reaches nothing outside the artifact.
 
 ## Size, memory, and speed
 
@@ -227,14 +247,14 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Generated `wasm_module.rb` | 48.6 MB |
 | Shipped `snapshot.bin.gz` | 2.7 MB |
 | Packaged `.gem` | 9.5 MB |
-| `require "dewasm/merman"` | 4.7 s |
-| Resident memory after `require` | 1125.9 MB |
-| One module instantiation | 38 ms |
+| `require "dewasm/merman"` | 4.4 s |
+| Resident memory after `require` | 1125.2 MB |
+| One module instantiation | 39 ms |
 | `render_svg`, flowchart | 74 ms |
-| `render_svg`, sequence diagram | 87 ms |
-| `render_svg`, railroad diagram | 77 ms |
-| `render_ascii`, flowchart | 53 ms |
-| `parse_metadata` | 113 ms |
+| `render_svg`, sequence diagram | 90 ms |
+| `render_svg`, railroad diagram | 94 ms |
+| `render_ascii`, flowchart | 54 ms |
+| `parse_metadata` | 131 ms |
 <!-- measurements:end -->
 
 The rows fall into three groups.
@@ -242,25 +262,12 @@ The first ones are what ships: the wasm module, the Ruby source dewasm generates
 The next two are the one-time cost of loading that source, in time and in resident memory.
 The rest are per-call costs, one module instantiation and one call of each function.
 
-The snapshot is what keeps a render from paying merman's initialization.
-merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
-The build does one render, captures the module state it leaves behind, and ships it as `snapshot.bin.gz`; each call restores that state into its fresh instance instead of building it again, so the initialization is paid once at build time rather than on every render.
-The state is the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
-A missing snapshot file, or one of another version, is an error asking for `rake generate`: there is no second path that would render the same output more slowly.
-
-The one thing a restored instance must not share with every other instance is the hash seed merman drew while initializing.
-The build records where in memory that seed sits, and every render writes bytes from its `random:` source over it, so each render hashes with a seed of its own while the tables built around the old one keep working.
-Recording the offset is a search for the exact bytes the build handed out, and it insists on finding them in exactly one place, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
-
-The artifact therefore contains no WASI implementation and reaches nothing outside itself while rendering.
-The imports the wasm module declares are all resolved to stubs that raise `Dewasm::Merman::Error`, and none of them fires: rendering reads no clock, no environment, no file, and no operating system randomness.
-
 Three facts hold whatever the magnitudes are.
 Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it is paid once and does not grow with the number of calls.
 Instantiation is a small part of a one-shot render, so the API that instantiates per call costs little over one that reuses an instance, and it keeps no wasm memory alive between calls.
 Turning merman features off buys size but not speed: a build of the same release with only the `svg` feature produces a smaller wasm module and the same time per render, and it pays for that size with the diagram types it drops.
 
-The numbers move with the merman version pinned in `wasm/Cargo.toml` and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
+The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
 
 ## License
 
