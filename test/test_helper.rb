@@ -27,7 +27,8 @@ module Diagrams
   PIE = "pie title Pets\n  \"Dogs\" : 3\n  \"Cats\" : 2"
   CLASS = "classDiagram\n  Animal <|-- Dog"
   STATE = "stateDiagram-v2\n  [*] --> Still\n  Still --> [*]"
-  GANTT = "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Work\n  Task :a1, 2024-01-01, 30d"
+  GANTT =
+    "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Work\n  Task :a1, 2024-01-01, 30d"
   MINDMAP = "mindmap\n  root((core))\n    A\n    B"
   RAILROAD = <<~RAILROAD
     railroad-beta

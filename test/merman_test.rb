@@ -102,9 +102,8 @@ class MermanTest < Minitest::Test
   end
 
   def test_broken_diagram_raises
-    error = assert_raises(Dewasm::Merman::Error) do
-      Dewasm::Merman.render_svg("flowchart TD\n  ]]] ---")
-    end
+    error =
+      assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg("flowchart TD\n  ]]] ---") }
 
     assert_includes error.message, "Diagram parse error"
   end
@@ -141,10 +140,10 @@ class MermanTest < Minitest::Test
 
   def test_render_svg_is_deterministic
     [Diagrams::FLOWCHART, Diagrams::RAILROAD].each do |text|
-      first = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true,
-                                              random: Random.new(42))
-      second = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true,
-                                               random: Random.new(42))
+      first =
+        Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random: Random.new(42))
+      second =
+        Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random: Random.new(42))
 
       assert_equal first, second
     end

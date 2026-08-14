@@ -14,16 +14,20 @@ end
 
 file WASM => WASM_SOURCE do
   sh "wasm-opt -Oz --enable-bulk-memory --enable-sign-ext " \
-     "--enable-nontrapping-float-to-int #{WASM_SOURCE} -o #{WASM}"
+       "--enable-nontrapping-float-to-int #{WASM_SOURCE} -o #{WASM}"
 end
 
 file GENERATED => WASM do
   sh "#{DEWASM} #{WASM} --target ruby --mode library --no-default-wasi " \
-     "--module-name Dewasm::Merman::WasmModule -o #{GENERATED}"
+       "--module-name Dewasm::Merman::WasmModule -o #{GENERATED}"
 end
 
-file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/snapshot_util.rb",
-                  "tools/capture_snapshot.rb"] do
+file SNAPSHOT => [
+       GENERATED,
+       "lib/dewasm/merman/snapshot.rb",
+       "tools/snapshot_util.rb",
+       "tools/capture_snapshot.rb"
+     ] do
   sh RbConfig.ruby, "tools/capture_snapshot.rb"
 end
 

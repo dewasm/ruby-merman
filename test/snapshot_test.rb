@@ -45,16 +45,15 @@ class SnapshotTest < Minitest::Test
   def test_the_snapshot_carries_the_capture_seed_at_the_recorded_offset
     image, = Snapshot.state
 
-    assert_equal "DEWASMSNAPSHOT#{format('%02d', Snapshot::VERSION)}", SnapshotUtil::SEED
+    assert_equal "DEWASMSNAPSHOT#{format("%02d", Snapshot::VERSION)}", SnapshotUtil::SEED
     assert_equal SnapshotUtil::SEED, image.byteslice(Snapshot.seed_offset, Snapshot::SEED_SIZE)
   end
 
   def test_a_snapshot_of_another_version_is_rejected
     header = ["DWMS", 1, 0, 0, 0].pack("a4CL<L<Q<")
     with_snapshot_file(Zlib::Deflate.deflate(header)) do
-      error = assert_raises(Dewasm::Merman::Error) do
-        Dewasm::Merman.render_svg(Diagrams::FLOWCHART)
-      end
+      error =
+        assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg(Diagrams::FLOWCHART) }
 
       assert_includes error.message, "is not a version #{Snapshot::VERSION} snapshot"
     end
@@ -62,9 +61,8 @@ class SnapshotTest < Minitest::Test
 
   def test_a_missing_snapshot_asks_for_rake_generate
     with_snapshot_file(nil) do
-      error = assert_raises(Dewasm::Merman::Error) do
-        Dewasm::Merman.render_svg(Diagrams::FLOWCHART)
-      end
+      error =
+        assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg(Diagrams::FLOWCHART) }
 
       assert_includes error.message, "run `rake generate`"
     end
@@ -76,8 +74,14 @@ class SnapshotTest < Minitest::Test
   def render_with_seed(random)
     instance = Dewasm::Merman.send(:restored_instance, random)
     seed = instance.memory.buffer.get_string(Snapshot.seed_offset, Snapshot::SEED_SIZE)
-    svg = Dewasm::Merman.send(:run, instance, "merman_render_svg", Diagrams::FLOWCHART,
-                              Dewasm::Merman.send(:svg_options, nil, nil, false))
+    svg =
+      Dewasm::Merman.send(
+        :run,
+        instance,
+        "merman_render_svg",
+        Diagrams::FLOWCHART,
+        Dewasm::Merman.send(:svg_options, nil, nil, false)
+      )
     [svg, seed]
   end
 end

@@ -10,7 +10,7 @@ module Dewasm
     module SnapshotUtil
       # The bytes handed to merman's single `random_get` call while capturing; the snapshot records where they land so that every render overwrites them with a hash seed of its own, so this value seeds nothing that ships.
       # The capture step finds the seed cell by searching the memory for these bytes, so they carry the snapshot format version and must be exactly `Snapshot::SEED_SIZE` long.
-      SEED = "DEWASMSNAPSHOT#{format('%02d', Snapshot::VERSION)}".b.freeze
+      SEED = "DEWASMSNAPSHOT#{format("%02d", Snapshot::VERSION)}".b.freeze
 
       # Small enough to initialize quickly, and a flowchart so that the layout and text measurement tables are built.
       FLOWCHART = "flowchart TD\n  A[Start] --> B[Done]\n"
@@ -96,8 +96,11 @@ module Dewasm
       end
 
       def render_ascii(text)
-        call("merman_render_ascii", text,
-             { "ascii" => Merman.send(:ascii_option_json, charset: :unicode) })
+        call(
+          "merman_render_ascii",
+          text,
+          { "ascii" => Merman.send(:ascii_option_json, charset: :unicode) }
+        )
       end
 
       def parse_metadata(text)

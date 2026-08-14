@@ -19,7 +19,8 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"] = spec.homepage
 
-  spec.files = Dir["lib/**/*.rb"] + Dir["lib/**/*.bin.gz"] +
-               ["LICENSE", "LICENSE-MERMAN", "THIRD_PARTY_NOTICES-MERMAN.md", "README.md"]
+  spec.files =
+    Dir["lib/**/*.rb"] + Dir["lib/**/*.bin.gz"] +
+      %w[LICENSE LICENSE-MERMAN THIRD_PARTY_NOTICES-MERMAN.md README.md]
   spec.require_paths = ["lib"]
 end

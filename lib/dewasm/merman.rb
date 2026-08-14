@@ -10,7 +10,8 @@ module Dewasm
   # Mermaid diagram rendering through the merman renderer, compiled to wasm and converted to pure Ruby by dewasm.
   module Merman
     # Raised when merman reports an error for the given input or options.
-    class Error < StandardError; end
+    class Error < StandardError
+    end
 
     STATUS_OK = 0
     STATUS_NONE = 1
@@ -39,8 +40,9 @@ module Dewasm
     module Wasi
       def self.import(name)
         lambda do |*|
-          raise Error, "wasi import #{name} was called at render time; " \
-                       "this is a bug, please report it"
+          raise Error,
+                "wasi import #{name} was called at render time; " \
+                  "this is a bug, please report it"
         end
       end
     end
@@ -50,30 +52,64 @@ module Dewasm
     module_function
 
     # Renders the Mermaid parity SVG, or nil when the text is not a recognized diagram.
-    def render_svg(text, site_config: nil, diagram_id: nil, deterministic_text_measurer: false,
-                   random: Random)
-      call("merman_render_svg", text,
-           svg_options(site_config, diagram_id, deterministic_text_measurer), random)
+    def render_svg(
+      text,
+      site_config: nil,
+      diagram_id: nil,
+      deterministic_text_measurer: false,
+      random: Random
+    )
+      call(
+        "merman_render_svg",
+        text,
+        svg_options(site_config, diagram_id, deterministic_text_measurer),
+        random
+      )
     end
 
     # Renders SVG with readable `<text>` fallbacks for `<foreignObject>` labels.
-    def render_svg_readable(text, site_config: nil, diagram_id: nil,
-                            deterministic_text_measurer: false, random: Random)
-      call("merman_render_svg_readable", text,
-           svg_options(site_config, diagram_id, deterministic_text_measurer), random)
+    def render_svg_readable(
+      text,
+      site_config: nil,
+      diagram_id: nil,
+      deterministic_text_measurer: false,
+      random: Random
+    )
+      call(
+        "merman_render_svg_readable",
+        text,
+        svg_options(site_config, diagram_id, deterministic_text_measurer),
+        random
+      )
     end
 
     # Renders SVG restricted to what usvg, resvg, and raster converters accept.
-    def render_svg_resvg_safe(text, site_config: nil, diagram_id: nil,
-                              deterministic_text_measurer: false, random: Random)
-      call("merman_render_svg_resvg_safe", text,
-           svg_options(site_config, diagram_id, deterministic_text_measurer), random)
+    def render_svg_resvg_safe(
+      text,
+      site_config: nil,
+      diagram_id: nil,
+      deterministic_text_measurer: false,
+      random: Random
+    )
+      call(
+        "merman_render_svg_resvg_safe",
+        text,
+        svg_options(site_config, diagram_id, deterministic_text_measurer),
+        random
+      )
     end
 
     # Renders terminal text, or nil when the text is not a recognized diagram.
-    def render_ascii(text, charset: :unicode, strict_parsing: nil, fixed_today: nil,
-                     fixed_local_offset_minutes: nil, site_config: nil, random: Random,
-                     **ascii_options)
+    def render_ascii(
+      text,
+      charset: :unicode,
+      strict_parsing: nil,
+      fixed_today: nil,
+      fixed_local_offset_minutes: nil,
+      site_config: nil,
+      random: Random,
+      **ascii_options
+    )
       unknown = ascii_options.keys - ASCII_OPTIONS
       raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
 
@@ -133,16 +169,19 @@ module Dewasm
       status = instance.invoke(entry_point, text_ptr, text_len, options_ptr, options_len)
       payload = read_result(instance)
       case status
-      when STATUS_OK then payload
-      when STATUS_NONE then nil
-      else raise Error, payload
+      when STATUS_OK
+        payload
+      when STATUS_NONE
+        nil
+      else
+        raise Error, payload
       end
     end
     private_class_method :run
 
     def write(instance, string)
       bytes = string.b
-      return [0, 0] if bytes.empty?
+      return 0, 0 if bytes.empty?
 
       ptr = instance.invoke("merman_alloc", bytes.bytesize)
       instance.memory.init(ptr, bytes, 0, bytes.bytesize)
@@ -154,9 +193,11 @@ module Dewasm
       length = instance.invoke("merman_result_len")
       return +"" if length.zero?
 
-      instance.memory.buffer
-              .get_string(instance.invoke("merman_result_ptr"), length)
-              .force_encoding(Encoding::UTF_8)
+      instance
+        .memory
+        .buffer
+        .get_string(instance.invoke("merman_result_ptr"), length)
+        .force_encoding(Encoding::UTF_8)
     end
     private_class_method :read_result
   end

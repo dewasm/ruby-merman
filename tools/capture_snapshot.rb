@@ -20,7 +20,7 @@ def seed_offset(image)
   return offsets.first if offsets.size == 1
 
   raise "the capture seed appears #{offsets.size} times in the initialized memory, " \
-        "expected exactly once: merman's hash seed cell can no longer be located"
+          "expected exactly once: merman's hash seed cell can no longer be located"
 end
 
 instance = SnapshotUtil.instance
@@ -30,5 +30,10 @@ offset = seed_offset(image)
 blob = Snapshot.dump(image, instance.instance_variable_get(:@g0), offset)
 
 File.binwrite(Snapshot::PATH, Zlib::Deflate.deflate(blob, Zlib::BEST_COMPRESSION))
-puts format("wrote %s: %d pages, seed at %#x, %.1f MB compressed",
-            Snapshot::PATH, memory.size, offset, File.size(Snapshot::PATH) / 1_000_000.0)
+puts format(
+       "wrote %s: %d pages, seed at %#x, %.1f MB compressed",
+       Snapshot::PATH,
+       memory.size,
+       offset,
+       File.size(Snapshot::PATH) / 1_000_000.0
+     )

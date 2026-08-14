@@ -46,15 +46,14 @@ module Dewasm
       end
 
       def read
-        unless File.exist?(PATH)
-          raise Error, "#{PATH} is missing; run `rake generate` to build it"
-        end
+        raise Error, "#{PATH} is missing; run `rake generate` to build it" unless File.exist?(PATH)
 
         blob = Zlib::Inflate.inflate(File.binread(PATH))
         magic, version, seed_offset, global, length = blob.unpack(HEADER)
         unless magic == MAGIC && version == VERSION
-          raise Error, "#{PATH} is not a version #{VERSION} snapshot; run `rake generate` to " \
-                       "rebuild it"
+          raise Error,
+                "#{PATH} is not a version #{VERSION} snapshot; run `rake generate` to " \
+                  "rebuild it"
         end
 
         [blob.byteslice(HEADER_SIZE, length).freeze, global, seed_offset]

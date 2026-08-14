@@ -132,7 +132,7 @@ module Measure
   end
 
   def run_ruby(script)
-    Tempfile.create(["measure", ".rb"]) do |file|
+    Tempfile.create(%w[measure .rb]) do |file|
       file.write(script)
       file.flush
       output = IO.popen([RbConfig.ruby, "-Ilib", file.path], &:read)
