@@ -4,6 +4,7 @@ require "json"
 
 require_relative "merman/version"
 require_relative "merman/wasm_module"
+require_relative "merman/snapshot"
 
 module Dewasm
   # Mermaid diagram rendering through the merman renderer, compiled to wasm and
@@ -126,6 +127,7 @@ module Dewasm
 
     def call(entry_point, text, options, random)
       instance = WasmModule.new({ "wasi_snapshot_preview1" => RandomSource.new(random) })
+      Snapshot.restore(instance)
       text_ptr, text_len = write(instance, text.to_s.encode(Encoding::UTF_8))
       options_ptr, options_len = write(instance, JSON.generate(options.compact))
       status = instance.invoke(entry_point, text_ptr, text_len, options_ptr, options_len)

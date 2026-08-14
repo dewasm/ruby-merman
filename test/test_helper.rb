@@ -5,6 +5,21 @@ require "minitest/autorun"
 
 require "dewasm/merman"
 
+# Runs a block with the snapshot file absent, which is the path a checkout whose
+# snapshot has not been built takes.
+module WithoutSnapshot
+  def without_snapshot
+    path = Dewasm::Merman::Snapshot::PATH
+    hidden = "#{path}.hidden"
+    File.rename(path, hidden) if File.exist?(path)
+    Dewasm::Merman::Snapshot.forget
+    yield
+  ensure
+    File.rename(hidden, path) if File.exist?(hidden)
+    Dewasm::Merman::Snapshot.forget
+  end
+end
+
 module Diagrams
   FLOWCHART = "flowchart TD\n  A[Start] --> B[Done]"
   SEQUENCE = "sequenceDiagram\n  Alice->>Bob: Hi\n  Bob-->>Alice: Hello"

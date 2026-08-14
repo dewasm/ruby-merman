@@ -31,14 +31,15 @@ module Measure
 
   module_function
 
-  def rows(wasm, generated)
+  def rows(wasm, generated, snapshot)
     process = process_measurements
     in_process = in_process_measurements
     gem_file = Dir["*.gem"].max_by { |path| File.mtime(path) }
 
     rows = [
       ["`#{wasm}` after `wasm-opt -Oz`", bytes(File.size(wasm))],
-      ["Generated `#{File.basename(generated)}`", bytes(File.size(generated))]
+      ["Generated `#{File.basename(generated)}`", bytes(File.size(generated))],
+      ["Shipped `#{File.basename(snapshot)}`", bytes(File.size(snapshot))]
     ]
     rows << ["Packaged `.gem`", bytes(File.size(gem_file))] if gem_file
     rows << ["`require \"dewasm/merman\"`", seconds(process["require"])]
@@ -52,8 +53,8 @@ module Measure
     rows
   end
 
-  def block(wasm, generated)
-    table = rows(wasm, generated).map { |name, value| "| #{name} | #{value} |" }
+  def block(wasm, generated, snapshot)
+    table = rows(wasm, generated, snapshot).map { |name, value| "| #{name} | #{value} |" }
     [
       "Measured on #{machine}, rendering a two-node flowchart.",
       "",
@@ -63,14 +64,14 @@ module Measure
     ].join("\n")
   end
 
-  def rewrite_readme(wasm, generated)
+  def rewrite_readme(wasm, generated, snapshot)
     text = File.read(README)
     pattern = /^#{Regexp.escape(BEGIN_MARKER)}\n.*?^#{Regexp.escape(END_MARKER)}$/m
     unless text.match?(pattern)
       raise "#{README} has no #{BEGIN_MARKER} ... #{END_MARKER} block to rewrite"
     end
 
-    replacement = "#{BEGIN_MARKER}\n#{block(wasm, generated)}\n#{END_MARKER}"
+    replacement = "#{BEGIN_MARKER}\n#{block(wasm, generated, snapshot)}\n#{END_MARKER}"
     File.write(README, text.sub(pattern) { replacement })
   end
 
@@ -180,5 +181,5 @@ end
 
 desc "Measure sizes, memory, and speed, and rewrite the table in README.md"
 task measure: :generate do
-  Measure.rewrite_readme(WASM, GENERATED)
+  Measure.rewrite_readme(WASM, GENERATED, SNAPSHOT)
 end

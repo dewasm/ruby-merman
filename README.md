@@ -122,8 +122,9 @@ svg = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random:
 
 ## API
 
-Every function is a one-shot module function: it creates a wasm module instance, renders, and returns.
-Nothing is retained between calls, so no linear memory is held after a call returns and there is no shared state to synchronize.
+Every function is a one-shot module function: it creates a wasm module instance, restores the shipped state snapshot into it, renders, and returns.
+No instance is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize.
+The snapshot itself is read once per process and only ever copied from.
 
 | Ruby | merman |
 | --- | --- |
@@ -170,7 +171,8 @@ Options on `render_ascii`:
 An unknown keyword raises `ArgumentError`.
 
 `random:` accepts anything that responds to `bytes(n)` and returns that many bytes.
-merman calls it once per render to seed a hash map, so a fixed source makes a render reproducible.
+merman asks for randomness only while initializing, to seed a hash map, and the snapshot the gem ships has already done that, so the source is consulted only on the plain path.
+No output in this build depends on it either way.
 
 Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's message, for example `Diagram parse error (flowchart-v2): Unexpected character at 15` or `` ASCII rendering does not support diagram type `pie` ``.
 Text whose diagram type merman cannot detect is one of those errors (`No diagram type detected matching given configuration for text: ...`), not `nil`.
@@ -183,11 +185,12 @@ No other gems are needed at run time.
 
 ## How it is built
 
-Two steps, both driven by the Rakefile in this repository.
-Neither the wasm module nor the generated Ruby is committed: `lib/dewasm/merman/wasm_module.rb` is produced during the build and shipped in the gem.
+Three steps, all driven by the Rakefile in this repository.
+None of the build products is committed: `lib/dewasm/merman/wasm_module.rb` and `lib/dewasm/merman/snapshot.bin.gz` are produced during the build and shipped in the gem.
 
 1. `rake wasm:build` compiles `wasm/`, a small Rust crate that wraps merman behind a flat wasm ABI (`merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer, returning a status), and post-processes it with `wasm-opt -Oz`.
 2. `rake generate` runs dewasm over that module: `dewasm wasm/merman.wasm --target ruby --mode library --module-name Dewasm::Merman::WasmModule -o lib/dewasm/merman/wasm_module.rb`.
+3. The same task then runs `tools/prime_snapshot.rb`, which instantiates the generated module, renders one small flowchart so that merman's initialization runs, and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`.
 
 To regenerate from a clean checkout:
 
@@ -218,21 +221,28 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | --- | --- |
 | `wasm/merman.wasm` after `wasm-opt -Oz` | 11.8 MB |
 | Generated `wasm_module.rb` | 48.6 MB |
-| Packaged `.gem` | 7.2 MB |
-| `require "dewasm/merman"` | 4.5 s |
-| Resident memory after `require` | 1125.5 MB |
+| Shipped `snapshot.bin.gz` | 2.7 MB |
+| Packaged `.gem` | 9.5 MB |
+| `require "dewasm/merman"` | 4.4 s |
+| Resident memory after `require` | 1125.7 MB |
 | One module instantiation | 39 ms |
-| `render_svg`, flowchart | 3.0 s |
-| `render_svg`, sequence diagram | 3.0 s |
-| `render_svg`, railroad diagram | 2.9 s |
-| `render_ascii`, flowchart | 876 ms |
-| `parse_metadata` | 3.1 s |
+| `render_svg`, flowchart | 75 ms |
+| `render_svg`, sequence diagram | 91 ms |
+| `render_svg`, railroad diagram | 77 ms |
+| `render_ascii`, flowchart | 57 ms |
+| `parse_metadata` | 116 ms |
 <!-- measurements:end -->
 
 The rows fall into three groups.
-The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, and the packaged gem.
+The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, the state snapshot, and the packaged gem.
 The next two are the one-time cost of loading that source, in time and in resident memory.
 The rest are per-call costs, one module instantiation and one call of each function.
+
+The snapshot is what keeps a render from paying merman's initialization.
+merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
+The build does one render, captures the module state it leaves behind, and ships it as `snapshot.bin.gz`; each call restores that state into its fresh instance instead of building it again, so the initialization is paid once at build time rather than on every render.
+The state is the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a plain one renders.
+When the snapshot file is absent, as in a checkout whose build has not run, the plain path stays in place and renders the same output at the original cost.
 
 Three facts hold whatever the magnitudes are.
 Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it is paid once and does not grow with the number of calls.

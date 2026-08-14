@@ -5,6 +5,7 @@ require "rake/testtask"
 WASM_SOURCE = "wasm/target/wasm32-wasip1/release/merman_wasm.wasm"
 WASM = "wasm/merman.wasm"
 GENERATED = "lib/dewasm/merman/wasm_module.rb"
+SNAPSHOT = "lib/dewasm/merman/snapshot.bin.gz"
 DEWASM = ENV.fetch("DEWASM_BIN", File.expand_path("../dewasm/target/release/dewasm", __dir__))
 
 file WASM_SOURCE => FileList["wasm/src/*.rs", "wasm/Cargo.toml", "wasm/Cargo.lock"] do
@@ -21,6 +22,10 @@ file GENERATED => WASM do
      "--module-name Dewasm::Merman::WasmModule -o #{GENERATED}"
 end
 
+file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/prime_snapshot.rb"] do
+  sh RbConfig.ruby, "tools/prime_snapshot.rb"
+end
+
 Dir["tasks/*.rake"].sort.each { |path| load path }
 
 namespace :wasm do
@@ -28,8 +33,8 @@ namespace :wasm do
   task build: WASM
 end
 
-desc "Convert wasm/merman.wasm to Ruby with dewasm"
-task generate: GENERATED
+desc "Convert wasm/merman.wasm to Ruby with dewasm and capture the state snapshot"
+task generate: [GENERATED, SNAPSHOT]
 
 Rake::TestTask.new(test: :generate) do |t|
   t.libs = %w[lib test]
@@ -44,7 +49,7 @@ end
 
 desc "Remove build products"
 task :clean do
-  rm_f [WASM, GENERATED]
+  rm_f [WASM, GENERATED, SNAPSHOT]
   rm_rf "wasm/target"
 end
 
