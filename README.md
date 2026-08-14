@@ -6,7 +6,7 @@ The renderer is [merman](https://github.com/Latias94/merman), a headless Rust im
 There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
 The gem is built from merman `0.8.0-alpha.5` on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
-Two cargo features are enabled, `complete-svg` and `ascii`.
+Two cargo features are enabled: `complete-svg` and `ascii`.
 
 ## Install
 
@@ -295,7 +295,7 @@ Turning merman features off buys size but not speed: a build of the same release
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
 
-If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer built the same way, from a Zig implementation covering fewer diagram types.
+If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer covering fewer diagram types.
 
 ## License
 
