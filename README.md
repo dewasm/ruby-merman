@@ -118,12 +118,6 @@ svg = Dewasm::Merman.render_svg(<<~MERMAID, site_config: { "theme" => "dark" })
 MERMAID
 ```
 
-Reproducible output, for snapshot tests:
-
-```ruby
-svg = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random: Random.new(42))
-```
-
 ## API
 
 A single call renders the given diagram text to SVG or to terminal text.
@@ -188,55 +182,47 @@ No other gems are needed at run time.
 
 ## How it is built
 
-Three steps, all driven by the Rakefile in this repository.
-None of the build products is committed: `lib/dewasm/merman/wasm_module.rb` and `lib/dewasm/merman/snapshot.bin.gz` are produced during the build and shipped in the gem.
+`wasm/` is a small Rust crate that wraps merman behind a flat wasm ABI: `merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer and returning a status.
+It is compiled to `wasm32-wasip1`, post-processed with `wasm-opt -Oz`, and converted to Ruby by dewasm at the revision recorded in `DEWASM_REVISION`, in library mode with `--no-default-wasi`.
+That flag leaves the WASI imports to the embedder, so the generated file carries no WASI implementation at all.
 
-1. `rake wasm:build` compiles `wasm/`, a small Rust crate that wraps merman behind a flat wasm ABI (`merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer, returning a status), and post-processes it with `wasm-opt -Oz`.
-2. `rake generate` runs dewasm over that module: `dewasm wasm/merman.wasm --target ruby --mode library --no-default-wasi --module-name Dewasm::Merman::WasmModule -o lib/dewasm/merman/wasm_module.rb`.
-3. The same task then runs `tools/capture_snapshot.rb`, which instantiates the generated module, renders one small flowchart so that merman's initialization runs, and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`.
-
-`--no-default-wasi` leaves the WASI imports to the embedder, so the generated file carries no WASI implementation at all.
+Neither build product is committed: `lib/dewasm/merman/wasm_module.rb` and `lib/dewasm/merman/snapshot.bin.gz` are produced by the build and shipped in the gem.
 The initialization harness in `tools/snapshot_util.rb`, which the tests share with the build, supplies the few imports merman's initialization asks for: a recorded seed, the clocks, an empty environment, and standard error for a panic message.
 It stays out of the gem, which supplies stubs that raise instead.
 
-To regenerate from a clean checkout:
-
-```console
-$ rake wasm:build
-$ rake generate
-$ rake test
-```
-
-`rake wasm:build` needs the `wasm32-wasip1` Rust target (`rustup target add wasm32-wasip1`) and `wasm-opt` from Binaryen.
-`rake generate` needs a dewasm binary; the path comes from the `DEWASM_BIN` environment variable.
-The dewasm revision these instructions were verified against is recorded in `DEWASM_REVISION`.
-
 `wasm/Cargo.lock` is committed because merman's sibling crates publish alpha versions that move independently, and a mixed set does not compile.
+
+## Tasks
+
+The Rakefile drives everything, and each task depends on the ones before it, so running a later task runs what it needs first.
+From a clean checkout `rake test` is enough; the individual tasks are useful when only one step is in question.
+
+| Task | What it does | What it needs |
+| --- | --- | --- |
+| `rake wasm:build` | Compiles `wasm/` and post-processes it into `wasm/merman.wasm`. | The `wasm32-wasip1` Rust target (`rustup target add wasm32-wasip1`) and `wasm-opt` from Binaryen. |
+| `rake generate` | Runs dewasm over that module into `lib/dewasm/merman/wasm_module.rb`, then runs `tools/capture_snapshot.rb`, which renders one small flowchart so merman initializes and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`. | A dewasm binary, its path in `DEWASM_BIN`. |
+| `rake test` | Runs `test/` against the generated module and the captured snapshot. | `rake generate`. |
+| `rake measure` | Measures sizes, memory, and speed on the machine it runs on, and rewrites the block between the `measurements` markers in `README.md`. | `rake generate`, and a built gem in the checkout for the `.gem` row. |
+| `rake build` | Packages the gem. | `rake generate`. |
+| `rake clean` | Removes the build products and `wasm/target`. | — |
+
+`rake measure` runs `tools/measure.rb`, which can also be run directly as `ruby tools/measure.rb` when the build products are already in place.
+Each timing it reports is a warmup call followed by the median of three measured runs; the sizes come from `File.size`, and the resident memory from `ps` on a child process that has just required the module.
 
 ## Snapshot
 
-Every function is a one-shot module function: it creates a wasm module instance, restores the shipped state snapshot into it, injects a fresh hash seed, renders, and returns.
-No instance is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize.
-The snapshot itself is read once per process and only ever copied from.
-
-The snapshot is what keeps a render from paying merman's initialization.
 merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
-The build does one render, captures the module state it leaves behind, and ships it as `snapshot.bin.gz`; each call restores that state into its fresh instance instead of building it again, so the initialization is paid once at build time rather than on every render.
-The state is the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
+The build does one render and ships the state it leaves behind as `snapshot.bin.gz`: the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
+Every function is a one-shot module function: it creates an instance, restores that snapshot into it, injects a fresh hash seed, renders, and returns.
+Nothing is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize; the snapshot itself is read once per process and only ever copied from.
 A missing snapshot file, or one of another version, is an error asking for `rake generate`: there is no second path that would render the same output more slowly.
 
-The one thing a restored instance must not share with every other instance is the hash seed merman drew while initializing.
-The build records where in memory that seed sits, and every render writes bytes from its `random:` source over it, so each render hashes with a seed of its own while the tables built around the old one keep working.
-Recording the offset is a search for the exact bytes the build handed out, and it insists on finding them in exactly one place, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
+A restored instance must not keep the hash seed merman drew while initializing, so every render writes bytes from its `random:` source over it and hashes with a seed of its own while the tables built around the old one keep working.
+The build finds that offset by searching for the exact seed bytes it handed out and insisting on exactly one match, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
 
 The imports the wasm module declares are all resolved to stubs that raise `Dewasm::Merman::Error`, and none of them fires while rendering: a render reads no clock, no environment, no file, and no operating system randomness, so it reaches nothing outside the artifact.
 
 ## Size, memory, and speed
-
-The table below is generated by `rake measure`, which measures on the machine it runs on and rewrites the block between the `measurements` markers in this file.
-It depends on the build products, so it runs `rake generate` first; the `.gem` row appears only when a built gem is present in the checkout.
-Each timing is a warmup call followed by the median of three measured runs.
-The sizes come from `File.size`, and the resident memory from `ps` on a child process that has just required the module.
 
 <!-- measurements:begin -->
 Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
@@ -247,14 +233,14 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Generated `wasm_module.rb` | 48.6 MB |
 | Shipped `snapshot.bin.gz` | 2.7 MB |
 | Packaged `.gem` | 9.5 MB |
-| `require "dewasm/merman"` | 4.4 s |
-| Resident memory after `require` | 1125.2 MB |
+| `require "dewasm/merman"` | 4.5 s |
+| Resident memory after `require` | 1125.3 MB |
 | One module instantiation | 39 ms |
-| `render_svg`, flowchart | 74 ms |
-| `render_svg`, sequence diagram | 90 ms |
-| `render_svg`, railroad diagram | 94 ms |
+| `render_svg`, flowchart | 75 ms |
+| `render_svg`, sequence diagram | 91 ms |
+| `render_svg`, railroad diagram | 78 ms |
 | `render_ascii`, flowchart | 54 ms |
-| `parse_metadata` | 131 ms |
+| `parse_metadata` | 114 ms |
 <!-- measurements:end -->
 
 The rows fall into three groups.
@@ -268,6 +254,8 @@ Instantiation is a small part of a one-shot render, so the API that instantiates
 Turning merman features off buys size but not speed: a build of the same release with only the `svg` feature produces a smaller wasm module and the same time per render, and it pays for that size with the diagram types it drops.
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
+
+If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer built the same way, from a Zig implementation covering fewer diagram types.
 
 ## License
 
