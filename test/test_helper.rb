@@ -13,4 +13,14 @@ module Diagrams
   STATE = "stateDiagram-v2\n  [*] --> Still\n  Still --> [*]"
   GANTT = "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Work\n  Task :a1, 2024-01-01, 30d"
   MINDMAP = "mindmap\n  root((core))\n    A\n    B"
+  RAILROAD = <<~RAILROAD
+    railroad-beta
+    accTitle: Expression grammar
+    expr = sequence(nonterminal("term"), optional(special("guard")), zeroOrMore(terminal("+"))) ;
+  RAILROAD
+  RAILROAD_EBNF = <<~EBNF
+    railroad-ebnf-beta
+    expr = term , { "+" , term } ;
+    term = "a" | "b" ;
+  EBNF
 end

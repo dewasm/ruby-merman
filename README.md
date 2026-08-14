@@ -1,8 +1,9 @@
 # dewasm-merman
 
-Mermaid diagrams rendered in pure Ruby.
+**Mermaid** diagrams rendered in **pure Ruby**.
+
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
-There is no browser, no native extension, and no wasm runtime involved: the gem is Ruby code that a stock `ruby` executes.
+There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
 ## Install
 
@@ -10,7 +11,7 @@ There is no browser, no native extension, and no wasm runtime involved: the gem 
 $ gem install dewasm-merman
 ```
 
-Or in a Gemfile:
+Or in `Gemfile`:
 
 ```ruby
 gem "dewasm-merman"
@@ -32,7 +33,10 @@ File.write("flowchart.svg", svg)
 Terminal text instead of SVG:
 
 ```ruby
-puts Dewasm::Merman.render_ascii("flowchart LR\n  A[Start] --> B[Done]")
+puts Dewasm::Merman.render_ascii(<<~MERMAID)
+  flowchart LR
+    A[Start] --> B[Done]
+MERMAID
 ```
 
 ```
@@ -44,7 +48,10 @@ puts Dewasm::Merman.render_ascii("flowchart LR\n  A[Start] --> B[Done]")
 ```
 
 ```ruby
-puts Dewasm::Merman.render_ascii("flowchart TD\n  A[Start] --> B[Done]", charset: :ascii)
+puts Dewasm::Merman.render_ascii(<<~MERMAID, charset: :ascii)
+  flowchart TD
+    A[Start] --> B[Done]
+MERMAID
 ```
 
 ```
@@ -65,20 +72,46 @@ puts Dewasm::Merman.render_ascii("flowchart TD\n  A[Start] --> B[Done]", charset
 +-------+
 ```
 
+## Diagram types
+
+The build enables merman's `complete-svg` and `ascii` features, which is merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
+`render_ascii` covers the subset merman renders as terminal text; asking it for another type raises `Dewasm::Merman::Error`.
+
+Railroad grammar diagrams take one of four dialect headers: `railroad-beta` for merman's own grammar function syntax, `railroad-ebnf-beta` for EBNF, `railroad-abnf-beta` for ABNF, and `railroad-peg-beta` for PEG.
+
+```ruby
+svg = Dewasm::Merman.render_svg(<<~MERMAID)
+  railroad-beta
+  expr = sequence(nonterminal("term"), zeroOrMore(terminal("+"))) ;
+MERMAID
+```
+
+The result carries `aria-roledescription="railroad"` and the `railroad-rule`, `railroad-nonterminal`, and `railroad-terminal` classes that Mermaid's own railroad output uses.
+
 Diagram metadata, mirroring Mermaid's `mermaidAPI.parse()` return shape:
 
 ```ruby
-metadata = Dewasm::Merman.parse_metadata("---\ntitle: My Chart\n---\npie title Pets\n  \"Dogs\" : 3\n")
-metadata["diagram_type"]   # => "pie"
-metadata["title"]          # => "My Chart"
-metadata["config"]         # => {} (front-matter and directive overrides)
+metadata = Dewasm::Merman.parse_metadata(<<~MERMAID)
+  ---
+  title: My Chart
+  ---
+  pie title Pets
+    "Dogs" : 3
+MERMAID
+
+metadata["diagram_type"]               # => "pie"
+metadata["title"]                      # => "My Chart"
+metadata["config"]                     # => {} (front-matter and directive overrides)
 metadata["effective_config"]["theme"]  # => "default"
 ```
 
 Mermaid site configuration is a Hash, serialized to JSON and applied as merman's site config:
 
 ```ruby
-svg = Dewasm::Merman.render_svg("flowchart TD\n  A --> B", site_config: { "theme" => "dark" })
+svg = Dewasm::Merman.render_svg(<<~MERMAID, site_config: { "theme" => "dark" })
+  flowchart TD
+    A --> B
+MERMAID
 ```
 
 Reproducible output, for snapshot tests:
@@ -96,11 +129,11 @@ Nothing is retained between calls, so no linear memory is held after a call retu
 | --- | --- |
 | `Dewasm::Merman.render_svg(text, **options)` | `HeadlessRenderer::render_svg_sync` |
 | `Dewasm::Merman.render_svg_readable(text, **options)` | `HeadlessRenderer::render_svg_readable_sync` |
-| `Dewasm::Merman.render_svg_resvg_safe(text, **options)` | `HeadlessRenderer::render_svg_resvg_safe_sync` |
+| `Dewasm::Merman.render_svg_resvg_safe(text, **options)` | `HeadlessRenderer::render_resvg_compatible_svg_sync` |
 | `Dewasm::Merman.render_ascii(text, **options)` | `HeadlessAsciiRenderer::render_ascii_sync` |
 | `Dewasm::Merman.parse_metadata(text, **options)` | `HeadlessRenderer::parse_metadata_sync` |
 
-Options on the three SVG functions:
+Options on the three SVG functions (`render_svg`, `render_svg_readable`, and `render_svg_resvg_safe`):
 
 | Option | Default | merman |
 | --- | --- | --- |
@@ -117,18 +150,29 @@ Options on `render_ascii`:
 | --- | --- | --- |
 | `charset:` | `:unicode` | `AsciiRenderOptions#charset`, `:unicode` or `:ascii` |
 | `strict_parsing:` | `nil` | `nil` keeps merman's own parse default; `with_strict_parsing` when true, `with_lenient_parsing` when false |
-| `fixed_today:` | `nil` | `with_fixed_today`, a `Date` |
-| `fixed_local_offset_minutes:` | `nil` | `with_fixed_local_offset_minutes` |
+| `fixed_today:` | `nil` | `RuntimePolicy#with_fixed_today`, a `Date` |
+| `fixed_local_offset_minutes:` | `nil` | `RuntimePolicy#try_with_fixed_local_offset_minutes` |
 | `site_config:` | `nil` | `with_site_config` |
 | `random:` | `Random` | the source behind the WASI `random_get` import |
 
-`render_ascii` also takes the remaining `AsciiRenderOptions` fields as keywords, each with merman's default: `default_direction:` (`:left_right` or `:top_down`), `color_mode:` (`:plain`, `:auto`, `:ansi16`, `:ansi256`, `:true_color`, `:html`), `color_theme:` (`:light` or `:dark`), `box_border_padding:`, `graph_padding_x:`, `graph_padding_y:`, `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`, `sequence_mirror_actors:`, `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`, `max_grid_cells:`, `relation_summary_diagnostics:`.
+`render_ascii` also takes the remaining `AsciiRenderOptions` fields as keywords, each with merman's default:
+
+- `default_direction:` (`:left_right` or `:top_down`),
+- `color_mode:` (`:plain`, `:ansi16`, `:ansi256`, `:true_color`, `:html`),
+- `color_theme:` (`:light` or `:dark`),
+- `box_border_padding:`,
+- `graph_padding_x:`, `graph_padding_y:`,
+- `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`, `sequence_mirror_actors:`,
+- `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`,
+- `max_grid_cells:`,
+- `relation_summary_diagnostics:`.
+
 An unknown keyword raises `ArgumentError`.
 
 `random:` accepts anything that responds to `bytes(n)` and returns that many bytes.
 merman calls it once per render to seed a hash map, so a fixed source makes a render reproducible.
 
-Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's message, for example `Diagram parse error (flowchart-v2): Unexpected character at 15` or `ASCII rendering does not support diagram type \`pie\``.
+Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's message, for example `Diagram parse error (flowchart-v2): Unexpected character at 15` or `` ASCII rendering does not support diagram type `pie` ``.
 Text whose diagram type merman cannot detect is one of those errors (`No diagram type detected matching given configuration for text: ...`), not `nil`.
 The functions return `nil` only where merman itself returns "no diagram" without an error, which in this build's feature set does not occur for text input.
 
@@ -166,19 +210,24 @@ Measured on an Apple M-series machine with Ruby 4.0.4, rendering a two-node flow
 
 | Quantity | Value |
 | --- | --- |
-| `wasm/merman.wasm` after `wasm-opt -Oz` | 5.3 MB |
-| Generated `wasm_module.rb` | 26 MB |
-| Packaged `.gem` | 3.6 MB |
-| `require "dewasm/merman"` | 1.6 s |
-| Resident memory after `require` | 609 MB |
-| One module instantiation | 7.6 ms |
-| `render_svg`, flowchart | 308 ms |
-| `render_svg`, sequence diagram | 308 ms |
-| `render_ascii`, flowchart | 285 ms |
-| `parse_metadata` | 327 ms |
+| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.8 MB |
+| Generated `wasm_module.rb` | 49 MB |
+| Packaged `.gem` | 7.2 MB |
+| `require "dewasm/merman"` | 4.4 s |
+| Resident memory after `require` | 1073 MB |
+| One module instantiation | 39 ms |
+| `render_svg`, flowchart | 3.0 s |
+| `render_svg`, sequence diagram | 3.1 s |
+| `render_svg`, railroad diagram | 3.1 s |
+| `render_ascii`, flowchart | 0.9 s |
+| `parse_metadata` | 3.1 s |
 
-The cost that dominates is loading 26 MB of Ruby: the `require` takes over a second and the resulting instruction sequences account for nearly all of the resident memory.
-Rendering itself is a few hundred milliseconds and instantiation is a small part of it, so the one-shot API costs little over reusing an instance while keeping no wasm memory alive between calls.
+There are two costs.
+Loading 49 MB of Ruby takes over four seconds and the resulting instruction sequences account for nearly all of the resident memory.
+Each SVG render then costs about three seconds, of which instantiation is a small part, so the one-shot API still costs little over reusing an instance while keeping no wasm memory alive between calls.
+
+Neither cost comes from the feature selection.
+A build of the same merman release with only the `svg` feature measures 8.2 MB of wasm and the same three seconds per render, so turning features off buys size but not speed, and it buys that size by dropping diagram types.
 
 ## License
 
@@ -186,6 +235,6 @@ This repository's own code is MIT: see `LICENSE`.
 
 merman is dual licensed under MIT or Apache-2.0, and this gem takes it under MIT: see `LICENSE-MERMAN`.
 The gem also ships merman's `THIRD_PARTY_NOTICES-MERMAN.md`, upstream's inventory of the projects merman derives from (Mermaid itself among them).
-That inventory covers every upstream artifact; this gem contains only the `render` and `ascii` feature closure.
+That inventory covers every upstream artifact; this gem contains only the `complete-svg` and `ascii` feature closure.
 
 merman is not affiliated with or endorsed by Mermaid.

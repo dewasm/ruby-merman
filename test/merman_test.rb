@@ -5,7 +5,7 @@ require "test_helper"
 class MermanTest < Minitest::Test
   def test_version_constants
     assert_equal "0.1.0", Dewasm::Merman::VERSION
-    assert_equal "0.8.0-alpha.3", Dewasm::Merman::MERMAN_VERSION
+    assert_equal "0.8.0-alpha.5", Dewasm::Merman::MERMAN_VERSION
   end
 
   def test_render_svg_covers_the_common_diagram_types
@@ -116,13 +116,39 @@ class MermanTest < Minitest::Test
     assert_includes error.message, "does not support diagram type `pie`"
   end
 
-  def test_render_svg_is_deterministic
-    first = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, deterministic_text_measurer: true,
-                                                           random: Random.new(42))
-    second = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, deterministic_text_measurer: true,
-                                                            random: Random.new(42))
+  def test_render_svg_railroad
+    svg = Dewasm::Merman.render_svg(Diagrams::RAILROAD)
 
-    assert_equal first, second
+    assert svg.start_with?("<svg")
+    assert_includes svg, 'aria-roledescription="railroad"'
+    assert_includes svg, 'class="railroad-rule"'
+    assert_includes svg, 'class="railroad-nonterminal"'
+    assert_includes svg, "Expression grammar"
+  end
+
+  def test_render_svg_railroad_ebnf
+    svg = Dewasm::Merman.render_svg(Diagrams::RAILROAD_EBNF)
+
+    assert svg.start_with?("<svg")
+    assert_includes svg, 'aria-roledescription="railroadEbnf"'
+    assert_includes svg, 'class="railroad-terminal"'
+  end
+
+  def test_parse_metadata_reports_the_railroad_diagram_type
+    metadata = Dewasm::Merman.parse_metadata(Diagrams::RAILROAD)
+
+    assert_equal "railroad", metadata["diagram_type"]
+  end
+
+  def test_render_svg_is_deterministic
+    [Diagrams::FLOWCHART, Diagrams::RAILROAD].each do |text|
+      first = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true,
+                                              random: Random.new(42))
+      second = Dewasm::Merman.render_svg(text, deterministic_text_measurer: true,
+                                               random: Random.new(42))
+
+      assert_equal first, second
+    end
   end
 
   def test_gantt_ascii_with_a_fixed_today_is_deterministic

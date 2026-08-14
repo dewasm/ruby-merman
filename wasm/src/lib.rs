@@ -11,7 +11,9 @@ use merman::ascii::{
     AsciiCharset, AsciiColorMode, AsciiColorTheme, AsciiDirection, AsciiRenderOptions,
     HeadlessAsciiRenderer,
 };
-use merman::render::HeadlessRenderer;
+use merman::runtime::RuntimePolicy;
+use merman::svg::HeadlessRenderer;
+use merman::time::CivilDate;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -121,13 +123,28 @@ fn read_input<'a>(
     Ok(Input { text, options })
 }
 
-fn fixed_today(options: &Options) -> Result<Option<chrono::NaiveDate>, String> {
-    match &options.fixed_today {
-        None => Ok(None),
-        Some(raw) => chrono::NaiveDate::parse_from_str(raw, "%Y-%m-%d")
-            .map(Some)
-            .map_err(|e| format!("invalid fixed_today {raw:?}: {e}")),
+/// Builds the runtime policy carrying the fixed-time options, or `None` when neither is set.
+///
+/// merman 0.8.0-alpha.5 moved the fixed-time controls off the renderer onto the runtime
+/// policy, whose default is the deterministic policy the renderers already use, so the
+/// returned policy differs from the default only in what the caller asked for.
+fn runtime_policy(options: &Options) -> Result<Option<RuntimePolicy>, String> {
+    if options.fixed_today.is_none() && options.fixed_local_offset_minutes.is_none() {
+        return Ok(None);
     }
+    let mut policy = RuntimePolicy::default();
+    if let Some(offset) = options.fixed_local_offset_minutes {
+        policy = policy
+            .try_with_fixed_local_offset_minutes(offset)
+            .map_err(|e| format!("invalid fixed_local_offset_minutes {offset}: {e}"))?;
+    }
+    if let Some(raw) = &options.fixed_today {
+        let today = raw
+            .parse::<CivilDate>()
+            .map_err(|e| format!("invalid fixed_today {raw:?}: {e}"))?;
+        policy = policy.with_fixed_today(Some(today));
+    }
+    Ok(Some(policy))
 }
 
 fn charset(name: &str) -> Result<AsciiCharset, String> {
@@ -149,7 +166,6 @@ fn direction(name: &str) -> Result<AsciiDirection, String> {
 fn color_mode(name: &str) -> Result<AsciiColorMode, String> {
     match name {
         "plain" => Ok(AsciiColorMode::Plain),
-        "auto" => Ok(AsciiColorMode::Auto),
         "ansi16" => Ok(AsciiColorMode::Ansi16),
         "ansi256" => Ok(AsciiColorMode::Ansi256),
         "true_color" => Ok(AsciiColorMode::TrueColor),
@@ -235,11 +251,8 @@ fn svg_renderer(options: &Options) -> Result<HeadlessRenderer, String> {
         Some(false) => renderer.with_lenient_parsing(),
         None => renderer,
     };
-    if let Some(today) = fixed_today(options)? {
-        renderer = renderer.with_fixed_today(Some(today));
-    }
-    if let Some(offset) = options.fixed_local_offset_minutes {
-        renderer = renderer.with_fixed_local_offset_minutes(Some(offset));
+    if let Some(policy) = runtime_policy(options)? {
+        renderer = renderer.with_runtime_policy(policy);
     }
     Ok(renderer)
 }
@@ -254,11 +267,8 @@ fn ascii_renderer(options: &Options) -> Result<HeadlessAsciiRenderer, String> {
         Some(false) => renderer.with_lenient_parsing(),
         None => renderer,
     };
-    if let Some(today) = fixed_today(options)? {
-        renderer = renderer.with_fixed_today(Some(today));
-    }
-    if let Some(offset) = options.fixed_local_offset_minutes {
-        renderer = renderer.with_fixed_local_offset_minutes(Some(offset));
+    if let Some(policy) = runtime_policy(options)? {
+        renderer = renderer.with_runtime_policy(policy);
     }
     Ok(renderer.with_ascii_options(ascii_options(&options.ascii)?))
 }
@@ -272,7 +282,7 @@ fn run_svg(
     text_len: u32,
     options_ptr: *const u8,
     options_len: u32,
-    render: fn(&HeadlessRenderer, &str) -> merman::render::Result<Option<String>>,
+    render: fn(&HeadlessRenderer, &str) -> merman::svg::Result<Option<String>>,
 ) -> u32 {
     let input = match read_input(text_ptr, text_len, options_ptr, options_len) {
         Ok(input) => input,
@@ -333,8 +343,19 @@ pub extern "C" fn merman_render_svg_resvg_safe(
         text_len,
         options_ptr,
         options_len,
-        HeadlessRenderer::render_svg_resvg_safe_sync,
+        render_resvg_compatible_svg,
     )
+}
+
+/// Unwraps the sealed resvg-compatible SVG that merman 0.8.0-alpha.5 returns in place of a
+/// plain string; the retained reference plan only serves merman's own raster exporters.
+fn render_resvg_compatible_svg(
+    renderer: &HeadlessRenderer,
+    text: &str,
+) -> merman::svg::Result<Option<String>> {
+    Ok(renderer
+        .render_resvg_compatible_svg_sync(text)?
+        .map(|svg| svg.into_string()))
 }
 
 #[unsafe(no_mangle)]
@@ -374,8 +395,10 @@ pub extern "C" fn merman_parse_metadata(
         Ok(renderer) => renderer,
         Err(message) => return error(message),
     };
+    // merman 0.8.0-alpha.5 returns the metadata directly: undetectable text is an error here,
+    // so this entry point no longer has a "no diagram" status to report.
     match renderer.parse_metadata_sync(input.text) {
-        Ok(Some(metadata)) => {
+        Ok(metadata) => {
             let payload = json!({
                 "diagram_type": metadata.diagram_type,
                 "config": metadata.config.as_value(),
@@ -384,7 +407,6 @@ pub extern "C" fn merman_parse_metadata(
             });
             ok(payload.to_string())
         }
-        Ok(None) => none(),
         Err(e) => error(e),
     }
 }
