@@ -5,9 +5,7 @@ require "zlib"
 require "test_helper"
 require_relative "../tools/priming"
 
-# The snapshot restores the state merman builds while initializing into every
-# fresh instance, so a restored render must produce what a freshly initialized
-# instance produces.
+# A restored render must produce what a freshly initialized instance produces.
 class SnapshotTest < Minitest::Test
   include WithSnapshotFile
 
@@ -34,8 +32,7 @@ class SnapshotTest < Minitest::Test
                  Dewasm::Merman.parse_metadata(Diagrams::PIE)
   end
 
-  # Each instance renders with a hash seed of its own, and the seed reaches no
-  # output: the two renders agree byte for byte.
+  # The seed reaches no output, so the two renders agree byte for byte.
   def test_each_render_gets_its_own_hash_seed
     first_svg, first_seed = render_with_seed(Random.new(1))
     second_svg, second_seed = render_with_seed(Random.new(2))
@@ -67,8 +64,7 @@ class SnapshotTest < Minitest::Test
 
   private
 
-  # Renders on an instance the test holds, so that the injected seed can be read
-  # back out of its memory.
+  # Renders on an instance the test holds, so that the injected seed can be read back out of its memory.
   def render_with_seed(random)
     instance = Dewasm::Merman.send(:restored_instance, random)
     seed = instance.memory.buffer.get_string(Snapshot.seed_offset, Snapshot::SEED_SIZE)

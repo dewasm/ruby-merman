@@ -4,8 +4,7 @@ require "English"
 require "json"
 require "tempfile"
 
-# Measures sizes, memory, and speed on the machine it runs on, and rewrites the
-# table between the measurement markers in README.md.
+# Measures sizes, memory, and speed on the machine it runs on, and rewrites the table between the measurement markers in README.md.
 module Measure
   README = "README.md"
   BEGIN_MARKER = "<!-- measurements:begin -->"
@@ -75,8 +74,7 @@ module Measure
     File.write(README, text.sub(pattern) { replacement })
   end
 
-  # One child process per run: the require time and the resident memory that
-  # holds the loaded code are only observable before anything else runs.
+  # One child process per run: the require time and the resident memory that holds the loaded code are only observable before anything else runs.
   def process_measurements
     script = <<~'RUBY'
       require "json"

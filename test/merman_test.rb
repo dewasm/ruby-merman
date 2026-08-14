@@ -94,8 +94,7 @@ class MermanTest < Minitest::Test
     assert_equal "My Chart", metadata["title"]
   end
 
-  # merman reports undetectable text as an error, not as `Ok(None)`, so there is
-  # no input in this build for which the render functions return nil.
+  # merman reports undetectable text as an error, not as `Ok(None)`, so there is no input in this build for which the render functions return nil.
   def test_text_that_is_not_a_diagram_raises
     error = assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg("not a diagram") }
 
@@ -160,7 +159,6 @@ class MermanTest < Minitest::Test
     assert_includes first, "2024-01-01"
   end
 
-  # The source supplies the hash seed a render starts from, once per render.
   def test_the_random_source_is_consulted_once_per_render
     counter = Object.new
     def counter.calls = @calls ||= 0

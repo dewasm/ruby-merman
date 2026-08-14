@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
-# Build step: carry a fresh instance through merman's once-per-instance
-# initialization, locate the hash seed it drew there, and write the resulting
-# state as lib/dewasm/merman/snapshot.bin.gz. The library restores that state into
-# every fresh instance, so the initialization is paid here instead of on each
-# render.
+# Build step: writes the state merman's once-per-instance initialization leaves behind as lib/dewasm/merman/snapshot.bin.gz, so that the library restores it instead of paying it on each render.
 
 require "zlib"
 
@@ -13,10 +9,7 @@ require_relative "priming"
 Snapshot = Dewasm::Merman::Snapshot
 Priming = Dewasm::Merman::Priming
 
-# Every render overwrites the seed in place, which only works if the cell the
-# initialization left it in is identified beyond doubt. A toolchain that puts the
-# bytes somewhere else, or in more than one place, stops the build here rather
-# than shipping a snapshot whose renders would share one seed.
+# Every render overwrites the seed in place, which only works if the cell the initialization left it in is identified beyond doubt: a snapshot whose renders would share one seed must not ship.
 def seed_offset(image)
   offsets = []
   offset = 0

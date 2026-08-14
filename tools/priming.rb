@@ -4,26 +4,17 @@ require_relative "../lib/dewasm/merman"
 
 module Dewasm
   module Merman
-    # A fresh module instance carried through merman's once-per-instance
-    # initialization, which is what the shipped snapshot captures.
+    # A fresh module instance carried through merman's once-per-instance initialization, which is what the shipped snapshot captures.
     #
-    # The build step that writes the snapshot and the tests that check a restored
-    # instance against a freshly initialized one are the only users, so this file
-    # stays outside the gem: what ships neither initializes nor carries a WASI
-    # implementation.
+    # The snapshot build step and the tests are the only users, so this file stays outside the gem: what ships neither initializes nor carries a WASI implementation.
     module Priming
-      # The bytes handed to merman's single `random_get` call while priming.
-      # The snapshot records where they land so that every render can overwrite
-      # them with a hash seed of its own, so this value seeds nothing that ships.
+      # The bytes handed to merman's single `random_get` call while priming; the snapshot records where they land so that every render overwrites them with a hash seed of its own, so this value seeds nothing that ships.
       SEED = "\x8f\x1d\xc2\x74\x53\xab\x09\xe6\x3f\x71\xd8\x4c\x25\xba\x60\x97".b.freeze
 
-      # Small enough to initialize quickly, and a flowchart so that the layout and
-      # text measurement tables are built.
+      # Small enough to initialize quickly, and a flowchart so that the layout and text measurement tables are built.
       FLOWCHART = "flowchart TD\n  A[Start] --> B[Done]\n"
 
-      # What merman asks of the host while initializing: the seed, the clocks, an
-      # empty environment, and a place to put a panic message. Every other WASI
-      # import raises, so priming cannot quietly depend on one.
+      # What merman asks of the host while initializing; every other WASI import raises, so priming cannot quietly depend on one.
       class Wasi
         ERRNO_SUCCESS = 0
 
@@ -90,18 +81,15 @@ module Dewasm
 
       module_function
 
-      # An instance whose initialization has run, equivalent to what restoring the
-      # snapshot produces.
+      # An instance whose initialization has run, equivalent to what restoring the snapshot produces.
       def instance
         instance = WasmModule.new({ "wasi_snapshot_preview1" => Wasi.new(SEED) })
         Merman.send(:run, instance, "merman_render_svg", FLOWCHART, {})
         instance
       end
 
-      # The public functions with their default options, each on its own freshly
-      # initialized instance. They reach into the private call path on purpose:
-      # taking the same path with a different instance is what makes the
-      # comparison against a restored render meaningful.
+      # The public functions with their default options, each on its own freshly initialized instance.
+      # They reach into the private call path on purpose: taking the same path with a different instance is what makes the comparison against a restored render meaningful.
       def render_svg(text)
         call("merman_render_svg", text, Merman.send(:svg_options, nil, nil, false))
       end

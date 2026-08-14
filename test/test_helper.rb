@@ -5,8 +5,7 @@ require "minitest/autorun"
 
 require "dewasm/merman"
 
-# Runs a block with the snapshot file replaced by the given bytes, or absent when
-# they are nil, which is what a checkout whose build has not run looks like.
+# Runs a block with the snapshot file replaced by the given bytes, or absent when they are nil, which is what a checkout whose build has not run looks like.
 module WithSnapshotFile
   def with_snapshot_file(bytes)
     path = Dewasm::Merman::Snapshot::PATH

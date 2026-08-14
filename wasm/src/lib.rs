@@ -1,8 +1,6 @@
 //! The wasm ABI that the Ruby side of dewasm-merman calls.
 //!
-//! Every entry point takes a UTF-8 diagram text and a UTF-8 options JSON document
-//! and returns a status: 0 for a result, 1 for "not a recognized diagram"
-//! (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
+//! Every entry point takes a UTF-8 diagram text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
 //! The payload is read back with `merman_result_ptr` and `merman_result_len`.
 
 use std::cell::RefCell;
@@ -123,11 +121,9 @@ fn read_input<'a>(
     Ok(Input { text, options })
 }
 
-/// Builds the runtime policy carrying the fixed-time options, or `None` when neither is set.
+/// Returns `None` when neither fixed-time option is set.
 ///
-/// merman 0.8.0-alpha.5 moved the fixed-time controls off the renderer onto the runtime
-/// policy, whose default is the deterministic policy the renderers already use, so the
-/// returned policy differs from the default only in what the caller asked for.
+/// merman 0.8.0-alpha.5 moved the fixed-time controls off the renderer onto the runtime policy, whose default is the deterministic policy the renderers already use, so the returned policy differs from the default only in what the caller asked for.
 fn runtime_policy(options: &Options) -> Result<Option<RuntimePolicy>, String> {
     if options.fixed_today.is_none() && options.fixed_local_offset_minutes.is_none() {
         return Ok(None);
@@ -347,8 +343,7 @@ pub extern "C" fn merman_render_svg_resvg_safe(
     )
 }
 
-/// Unwraps the sealed resvg-compatible SVG that merman 0.8.0-alpha.5 returns in place of a
-/// plain string; the retained reference plan only serves merman's own raster exporters.
+/// merman 0.8.0-alpha.5 returns the resvg-compatible SVG in a wrapper type instead of a plain string; the reference it retains only serves merman's own raster exporters.
 fn render_resvg_compatible_svg(
     renderer: &HeadlessRenderer,
     text: &str,
@@ -395,8 +390,7 @@ pub extern "C" fn merman_parse_metadata(
         Ok(renderer) => renderer,
         Err(message) => return error(message),
     };
-    // merman 0.8.0-alpha.5 returns the metadata directly: undetectable text is an error here,
-    // so this entry point no longer has a "no diagram" status to report.
+    // merman 0.8.0-alpha.5 makes undetectable text an error here, so this entry point has no "no diagram" status to report.
     match renderer.parse_metadata_sync(input.text) {
         Ok(metadata) => {
             let payload = json!({

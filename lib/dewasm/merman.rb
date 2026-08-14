@@ -7,8 +7,7 @@ require_relative "merman/wasm_module"
 require_relative "merman/snapshot"
 
 module Dewasm
-  # Mermaid diagram rendering through the merman renderer, compiled to wasm and
-  # converted to pure Ruby by dewasm.
+  # Mermaid diagram rendering through the merman renderer, compiled to wasm and converted to pure Ruby by dewasm.
   module Merman
     # Raised when merman reports an error for the given input or options.
     class Error < StandardError; end
@@ -35,10 +34,8 @@ module Dewasm
     ].freeze
     ASCII_OPTIONS = (ASCII_ENUM_OPTIONS + ASCII_PLAIN_OPTIONS).freeze
 
-    # The generated module carries no WASI implementation, so this resolves every
-    # WASI import the module declares. A restored instance has merman's
-    # initialization behind it and asks the host for nothing, so a call here means
-    # an assumption behind the shipped snapshot no longer holds.
+    # The generated module carries no WASI implementation, so this resolves every WASI import the module declares.
+    # A restored instance asks the host for nothing, so a call here means an assumption behind the shipped snapshot no longer holds.
     module Wasi
       def self.import(name)
         lambda do |*|
@@ -90,8 +87,7 @@ module Dewasm
       call("merman_render_ascii", text, options, random)
     end
 
-    # Returns the diagram type, front-matter config, effective config, and title,
-    # or nil when the text is not a recognized diagram.
+    # Returns the diagram type, front-matter config, effective config, and title, or nil when the text is not a recognized diagram.
     def parse_metadata(text, site_config: nil, random: Random)
       json = call("merman_parse_metadata", text, { "site_config" => site_config }, random)
       json && JSON.parse(json)
@@ -123,8 +119,7 @@ module Dewasm
     end
     private_class_method :call
 
-    # A fresh instance with the shipped snapshot restored into it and a hash seed
-    # drawn from `random` written over the seed the snapshot recorded.
+    # A hash seed drawn from `random` is written over the seed the snapshot recorded.
     def restored_instance(random)
       instance = WasmModule.new(IMPORTS)
       Snapshot.restore(instance, random)
