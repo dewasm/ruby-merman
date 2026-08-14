@@ -8,6 +8,12 @@ There is *no browser*, *no native extension*, and *no wasm runtime* involved: th
 The gem is built from merman `0.8.0-alpha.5` on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
 Two cargo features are enabled: `complete-svg` and `ascii`.
 
+> [!IMPORTANT]
+> Loading this gem costs **over a gigabyte of resident memory** and several seconds, because the converted renderer is tens of megabytes of Ruby source.
+> The cost is paid once per process and does not grow with the number of renders, but a small container will not hold it.
+>
+> [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a far smaller Mermaid renderer, but covers fewer diagram types.
+
 ## Install
 
 ```console
@@ -188,6 +194,52 @@ It stays out of the gem, which supplies stubs that raise instead.
 
 `wasm/Cargo.lock` is committed because merman's sibling crates publish alpha versions that move independently, and a mixed set does not compile.
 
+## Snapshot
+
+merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
+The build does one render and ships the state it leaves behind as `snapshot.bin.gz`: the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
+Every function is a one-shot module function: it creates an instance, restores that snapshot into it, injects a fresh hash seed, renders, and returns.
+Nothing is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize; the snapshot itself is read once per process and only ever copied from.
+A missing snapshot file, or one of another version, is an error asking for `rake generate`: there is no second path that would render the same output more slowly.
+
+A restored instance must not keep the hash seed merman drew while initializing, so every render writes bytes from its `random:` source over it and hashes with a seed of its own while the tables built around the old one keep working.
+The build finds that offset by searching for the exact seed bytes it handed out and insisting on exactly one match, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
+
+The imports the wasm module declares are all resolved to stubs that raise `Dewasm::Merman::Error`, and none of them fires while rendering: a render reads no clock, no environment, no file, and no operating system randomness, so it reaches nothing outside the artifact.
+
+## Size, memory, and speed
+
+<!-- measurements:begin -->
+Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
+
+| Quantity | Value |
+| --- | --- |
+| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.8 MB |
+| Generated `wasm_module.rb` | 48.6 MB |
+| Shipped `snapshot.bin.gz` | 2.7 MB |
+| Packaged `.gem` | 9.5 MB |
+| `require "dewasm/merman"` | 4.5 s |
+| Resident memory after `require` | 1125.3 MB |
+| One module instantiation | 39 ms |
+| `render_svg`, flowchart | 75 ms |
+| `render_svg`, sequence diagram | 91 ms |
+| `render_svg`, railroad diagram | 78 ms |
+| `render_ascii`, flowchart | 54 ms |
+| `parse_metadata` | 114 ms |
+<!-- measurements:end -->
+
+The rows fall into three groups.
+The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, the state snapshot, and the packaged gem.
+The next two are the one-time cost of loading that source, in time and in resident memory.
+The rest are per-call costs, one module instantiation and one call of each function.
+
+Three facts hold whatever the magnitudes are.
+Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it is paid once and does not grow with the number of calls.
+Instantiation is a small part of a one-shot render, so the API that instantiates per call costs little over one that reuses an instance, and it keeps no wasm memory alive between calls.
+Turning merman features off buys size but not speed: a build of the same release with only the `svg` feature produces a smaller wasm module and the same time per render, and it pays for that size with the diagram types it drops.
+
+The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
+
 ## Tasks
 
 The Rakefile drives everything, and each task depends on the ones before it, so running a later task runs what it needs first.
@@ -248,54 +300,6 @@ $ rake clean
 
 Removes the build products and `wasm/target`.
 It needs nothing.
-
-## Snapshot
-
-merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
-The build does one render and ships the state it leaves behind as `snapshot.bin.gz`: the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
-Every function is a one-shot module function: it creates an instance, restores that snapshot into it, injects a fresh hash seed, renders, and returns.
-Nothing is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize; the snapshot itself is read once per process and only ever copied from.
-A missing snapshot file, or one of another version, is an error asking for `rake generate`: there is no second path that would render the same output more slowly.
-
-A restored instance must not keep the hash seed merman drew while initializing, so every render writes bytes from its `random:` source over it and hashes with a seed of its own while the tables built around the old one keep working.
-The build finds that offset by searching for the exact seed bytes it handed out and insisting on exactly one match, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
-
-The imports the wasm module declares are all resolved to stubs that raise `Dewasm::Merman::Error`, and none of them fires while rendering: a render reads no clock, no environment, no file, and no operating system randomness, so it reaches nothing outside the artifact.
-
-## Size, memory, and speed
-
-<!-- measurements:begin -->
-Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
-
-| Quantity | Value |
-| --- | --- |
-| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.8 MB |
-| Generated `wasm_module.rb` | 48.6 MB |
-| Shipped `snapshot.bin.gz` | 2.7 MB |
-| Packaged `.gem` | 9.5 MB |
-| `require "dewasm/merman"` | 4.5 s |
-| Resident memory after `require` | 1125.3 MB |
-| One module instantiation | 39 ms |
-| `render_svg`, flowchart | 75 ms |
-| `render_svg`, sequence diagram | 91 ms |
-| `render_svg`, railroad diagram | 78 ms |
-| `render_ascii`, flowchart | 54 ms |
-| `parse_metadata` | 114 ms |
-<!-- measurements:end -->
-
-The rows fall into three groups.
-The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, the state snapshot, and the packaged gem.
-The next two are the one-time cost of loading that source, in time and in resident memory.
-The rest are per-call costs, one module instantiation and one call of each function.
-
-Three facts hold whatever the magnitudes are.
-Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it is paid once and does not grow with the number of calls.
-Instantiation is a small part of a one-shot render, so the API that instantiates per call costs little over one that reuses an instance, and it keeps no wasm memory alive between calls.
-Turning merman features off buys size but not speed: a build of the same release with only the `svg` feature produces a smaller wasm module and the same time per render, and it pays for that size with the diagram types it drops.
-
-The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
-
-If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer, but covers fewer diagram types.
 
 ## License
 
