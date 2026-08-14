@@ -6,6 +6,7 @@ module Dewasm
   module Merman
     # The module state captured after merman's once-per-instance initialization, restored into every fresh instance so that no render pays that cost.
     #
+    # The state is the linear memory, the shadow stack pointer held in the single mutable global `@g0`, and the offset of the hash seed merman drew while initializing.
     # A restored instance shares the initialized tables but not the hash seed, which restoring overwrites at the recorded offset.
     # The file is a zlib stream of `magic | version | seed offset | global | memory length | memory bytes`.
     module Snapshot

@@ -7,14 +7,15 @@ module Dewasm
     # A fresh module instance carried through merman's once-per-instance initialization, which is what the shipped snapshot captures.
     #
     # The snapshot build step and the tests are the only users, so this file stays outside the gem: what ships neither initializes nor carries a WASI implementation.
-    module Priming
-      # The bytes handed to merman's single `random_get` call while priming; the snapshot records where they land so that every render overwrites them with a hash seed of its own, so this value seeds nothing that ships.
-      SEED = "\x8f\x1d\xc2\x74\x53\xab\x09\xe6\x3f\x71\xd8\x4c\x25\xba\x60\x97".b.freeze
+    module SnapshotUtil
+      # The bytes handed to merman's single `random_get` call while capturing; the snapshot records where they land so that every render overwrites them with a hash seed of its own, so this value seeds nothing that ships.
+      # The capture step finds the seed cell by searching the memory for these bytes, so they carry the snapshot format version and must be exactly `Snapshot::SEED_SIZE` long.
+      SEED = "DEWASMSNAPSHOT#{format('%02d', Snapshot::VERSION)}".b.freeze
 
       # Small enough to initialize quickly, and a flowchart so that the layout and text measurement tables are built.
       FLOWCHART = "flowchart TD\n  A[Start] --> B[Done]\n"
 
-      # What merman asks of the host while initializing; every other WASI import raises, so priming cannot quietly depend on one.
+      # What merman asks of the host while initializing; every other WASI import raises, so initialization cannot quietly depend on one.
       class Wasi
         ERRNO_SUCCESS = 0
 
@@ -27,7 +28,7 @@ module Dewasm
         def import(name)
           return method(name) if IMPLEMENTED.include?(name)
 
-          ->(*) { raise Error, "wasi import #{name} was called while priming" }
+          ->(*) { raise Error, "wasi import #{name} was called while initializing" }
         end
 
         def attach(instance)

@@ -3,32 +3,32 @@
 require "zlib"
 
 require "test_helper"
-require_relative "../tools/priming"
+require_relative "../tools/snapshot_util"
 
 # A restored render must produce what a freshly initialized instance produces.
 class SnapshotTest < Minitest::Test
   include WithSnapshotFile
 
-  Priming = Dewasm::Merman::Priming
+  SnapshotUtil = Dewasm::Merman::SnapshotUtil
   Snapshot = Dewasm::Merman::Snapshot
 
   def test_render_svg_matches_a_freshly_initialized_instance
-    assert_equal Priming.render_svg(Diagrams::FLOWCHART),
+    assert_equal SnapshotUtil.render_svg(Diagrams::FLOWCHART),
                  Dewasm::Merman.render_svg(Diagrams::FLOWCHART)
   end
 
   def test_render_ascii_matches_a_freshly_initialized_instance
-    assert_equal Priming.render_ascii(Diagrams::SEQUENCE),
+    assert_equal SnapshotUtil.render_ascii(Diagrams::SEQUENCE),
                  Dewasm::Merman.render_ascii(Diagrams::SEQUENCE)
   end
 
   def test_render_svg_railroad_matches_a_freshly_initialized_instance
-    assert_equal Priming.render_svg(Diagrams::RAILROAD),
+    assert_equal SnapshotUtil.render_svg(Diagrams::RAILROAD),
                  Dewasm::Merman.render_svg(Diagrams::RAILROAD)
   end
 
   def test_parse_metadata_matches_a_freshly_initialized_instance
-    assert_equal Priming.parse_metadata(Diagrams::PIE),
+    assert_equal SnapshotUtil.parse_metadata(Diagrams::PIE),
                  Dewasm::Merman.parse_metadata(Diagrams::PIE)
   end
 
@@ -39,6 +39,14 @@ class SnapshotTest < Minitest::Test
 
     assert_equal first_svg, second_svg
     refute_equal first_seed, second_seed
+  end
+
+  # The capture seed stays readable as text in the shipped snapshot, because only restoring into an instance overwrites it.
+  def test_the_snapshot_carries_the_capture_seed_at_the_recorded_offset
+    image, = Snapshot.state
+
+    assert_equal "DEWASMSNAPSHOT#{format('%02d', Snapshot::VERSION)}", SnapshotUtil::SEED
+    assert_equal SnapshotUtil::SEED, image.byteslice(Snapshot.seed_offset, Snapshot::SEED_SIZE)
   end
 
   def test_a_snapshot_of_another_version_is_rejected

@@ -4,26 +4,26 @@
 
 require "zlib"
 
-require_relative "priming"
+require_relative "snapshot_util"
 
 Snapshot = Dewasm::Merman::Snapshot
-Priming = Dewasm::Merman::Priming
+SnapshotUtil = Dewasm::Merman::SnapshotUtil
 
 # Every render overwrites the seed in place, which only works if the cell the initialization left it in is identified beyond doubt: a snapshot whose renders would share one seed must not ship.
 def seed_offset(image)
   offsets = []
   offset = 0
-  while (found = image.index(Priming::SEED, offset))
+  while (found = image.index(SnapshotUtil::SEED, offset))
     offsets << found
     offset = found + 1
   end
   return offsets.first if offsets.size == 1
 
-  raise "the priming seed appears #{offsets.size} times in the initialized memory, " \
+  raise "the capture seed appears #{offsets.size} times in the initialized memory, " \
         "expected exactly once: merman's hash seed cell can no longer be located"
 end
 
-instance = Priming.instance
+instance = SnapshotUtil.instance
 memory = instance.memory
 image = memory.buffer.get_string(0, memory.size * Snapshot::PAGE_SIZE)
 offset = seed_offset(image)

@@ -190,10 +190,10 @@ None of the build products is committed: `lib/dewasm/merman/wasm_module.rb` and 
 
 1. `rake wasm:build` compiles `wasm/`, a small Rust crate that wraps merman behind a flat wasm ABI (`merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer, returning a status), and post-processes it with `wasm-opt -Oz`.
 2. `rake generate` runs dewasm over that module: `dewasm wasm/merman.wasm --target ruby --mode library --no-default-wasi --module-name Dewasm::Merman::WasmModule -o lib/dewasm/merman/wasm_module.rb`.
-3. The same task then runs `tools/prime_snapshot.rb`, which instantiates the generated module, renders one small flowchart so that merman's initialization runs, and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`.
+3. The same task then runs `tools/capture_snapshot.rb`, which instantiates the generated module, renders one small flowchart so that merman's initialization runs, and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`.
 
 `--no-default-wasi` leaves the WASI imports to the embedder, so the generated file carries no WASI implementation at all.
-The priming harness in `tools/priming.rb`, which the tests share with the build, supplies the few imports merman's initialization asks for: a recorded seed, the clocks, an empty environment, and standard error for a panic message.
+The initialization harness in `tools/snapshot_util.rb`, which the tests share with the build, supplies the few imports merman's initialization asks for: a recorded seed, the clocks, an empty environment, and standard error for a panic message.
 It stays out of the gem, which supplies stubs that raise instead.
 
 To regenerate from a clean checkout:

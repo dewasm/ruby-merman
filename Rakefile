@@ -22,9 +22,9 @@ file GENERATED => WASM do
      "--module-name Dewasm::Merman::WasmModule -o #{GENERATED}"
 end
 
-file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/priming.rb",
-                  "tools/prime_snapshot.rb"] do
-  sh RbConfig.ruby, "tools/prime_snapshot.rb"
+file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/snapshot_util.rb",
+                  "tools/capture_snapshot.rb"] do
+  sh RbConfig.ruby, "tools/capture_snapshot.rb"
 end
 
 Dir["tasks/*.rake"].sort.each { |path| load path }
