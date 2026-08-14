@@ -1,0 +1,74 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  BINARYEN_VERSION: version_132
+  BINARYEN_SHA256: 195ddc94f9bc89f45abdabb0b9eea86023d727ba90eac8b35b80f2544fc30572
+  # Pinned, because a new release reformatting something would fail an unrelated pull request.
+  SYNTAX_TREE_VERSION: 6.3.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # Building merman for wasm32-wasip1 and loading the ~50 MB generated Ruby dominate the wall time.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+      - name: Add the wasm32-wasip1 Rust target
+        run: rustup target add wasm32-wasip1
+      # The Rakefile calls wasm-opt with --enable-bulk-memory, --enable-sign-ext, and --enable-nontrapping-float-to-int, all of which this release accepts.
+      - name: Install binaryen
+        run: |
+          curl -fsSL --retry 5 -o /tmp/binaryen.tar.gz \
+            "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz"
+          echo "$BINARYEN_SHA256  /tmp/binaryen.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/binaryen.tar.gz -C /tmp
+          echo "/tmp/binaryen-$BINARYEN_VERSION/bin" >> "$GITHUB_PATH"
+      - name: Read the pinned dewasm revision
+        id: dewasm
+        run: echo "revision=$(cat DEWASM_REVISION)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: dewasm-cache
+        with:
+          path: ~/.dewasm
+          key: dewasm-${{ runner.os }}-${{ steps.dewasm.outputs.revision }}
+      - name: Build dewasm at the pinned revision
+        if: steps.dewasm-cache.outputs.cache-hit != 'true'
+        run: |
+          cargo install --git https://github.com/dewasm/dewasm \
+            --rev "${{ steps.dewasm.outputs.revision }}" --locked \
+            --root ~/.dewasm dewasm-cli
+      - name: Export DEWASM_BIN
+        run: echo "DEWASM_BIN=$HOME/.dewasm/bin/dewasm" >> "$GITHUB_ENV"
+      - run: bundle install --jobs 4
+      - run: bundle exec rake wasm:build
+      - run: bundle exec rake generate
+      - run: bundle exec rake test
+
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+      - name: Check the Rust format
+        run: cargo fmt --check --manifest-path wasm/Cargo.toml
+      # The file list comes from git, so the generated lib/dewasm/merman/wasm_module.rb, which is not committed, can never enter the check.
+      - name: Check the Ruby format
+        run: |
+          gem install syntax_tree -v "$SYNTAX_TREE_VERSION"
+          git ls-files 'Gemfile' 'Rakefile' '*.gemspec' 'lib/*.rb' 'tools/*.rb' 'test/*.rb' \
+            | grep -v '/wasm_module\.rb$' \
+            | xargs stree check
