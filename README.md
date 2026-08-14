@@ -222,17 +222,23 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | `parse_metadata` | 114 ms |
 <!-- measurements:end -->
 
+> [!IMPORTANT]
+> Loading this gem costs **over a gigabyte of resident memory** and several seconds, paid once per process.
+> A small container will not hold it.
+
 The rows fall into three groups.
 The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, the state snapshot, and the packaged gem.
-The next two are the one-time cost of loading that source, in time and in resident memory.
+The next two are that load cost, in time and in resident memory.
 The rest are per-call costs, one module instantiation and one call of each function.
 
 Three facts hold whatever the magnitudes are.
-Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it is paid once and does not grow with the number of calls.
+Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it does not grow with the number of calls.
 Instantiation is a small part of a one-shot render, so the API that instantiates per call costs little over one that reuses an instance, and it keeps no wasm memory alive between calls.
 Turning merman features off buys size but not speed: a build of the same release with only the `svg` feature produces a smaller wasm module and the same time per render, and it pays for that size with the diagram types it drops.
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
+
+If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer, but covers fewer diagram types.
 
 ## Tasks
 
