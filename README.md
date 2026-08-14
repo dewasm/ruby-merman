@@ -8,12 +8,6 @@ There is *no browser*, *no native extension*, and *no wasm runtime* involved: th
 The gem is built from merman `0.8.0-alpha.5` on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
 Two cargo features are enabled: `complete-svg` and `ascii`.
 
-> [!IMPORTANT]
-> Loading this gem costs **over a gigabyte of resident memory** and several seconds, because the converted renderer is tens of megabytes of Ruby source.
-> The cost is paid once per process and does not grow with the number of renders, but a small container will not hold it.
->
-> [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a far smaller Mermaid renderer, but covers fewer diagram types.
-
 ## Install
 
 ```console
