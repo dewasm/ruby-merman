@@ -5,17 +5,19 @@ require "minitest/autorun"
 
 require "dewasm/merman"
 
-# Runs a block with the snapshot file absent, which is the path a checkout whose
-# snapshot has not been built takes.
-module WithoutSnapshot
-  def without_snapshot
+# Runs a block with the snapshot file replaced by the given bytes, or absent when
+# they are nil, which is what a checkout whose build has not run looks like.
+module WithSnapshotFile
+  def with_snapshot_file(bytes)
     path = Dewasm::Merman::Snapshot::PATH
     hidden = "#{path}.hidden"
-    File.rename(path, hidden) if File.exist?(path)
+    File.rename(path, hidden)
+    File.binwrite(path, bytes) if bytes
     Dewasm::Merman::Snapshot.forget
     yield
   ensure
-    File.rename(hidden, path) if File.exist?(hidden)
+    File.unlink(path) if File.exist?(path)
+    File.rename(hidden, path)
     Dewasm::Merman::Snapshot.forget
   end
 end

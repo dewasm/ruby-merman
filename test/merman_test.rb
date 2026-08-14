@@ -3,8 +3,6 @@
 require "test_helper"
 
 class MermanTest < Minitest::Test
-  include WithoutSnapshot
-
   def test_version_constants
     assert_equal "0.1.0", Dewasm::Merman::VERSION
     assert_equal "0.8.0-alpha.5", Dewasm::Merman::MERMAN_VERSION
@@ -162,9 +160,8 @@ class MermanTest < Minitest::Test
     assert_includes first, "2024-01-01"
   end
 
-  # merman asks for randomness only while initializing, which the snapshot has
-  # already done, so the source is consulted on the plain path alone.
-  def test_random_source_is_used_without_a_snapshot
+  # The source supplies the hash seed a render starts from, once per render.
+  def test_the_random_source_is_consulted_once_per_render
     counter = Object.new
     def counter.calls = @calls ||= 0
     def counter.bytes(size)
@@ -172,8 +169,8 @@ class MermanTest < Minitest::Test
       "\0" * size
     end
 
-    without_snapshot { Dewasm::Merman.render_svg(Diagrams::FLOWCHART, random: counter) }
+    2.times { Dewasm::Merman.render_svg(Diagrams::FLOWCHART, random: counter) }
 
-    assert_operator counter.calls, :>, 0
+    assert_equal 2, counter.calls
   end
 end

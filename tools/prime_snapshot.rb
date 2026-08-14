@@ -1,36 +1,41 @@
 # frozen_string_literal: true
 
-# Build step: instantiate the generated module, render one small flowchart so that
-# merman's once-per-instance initialization runs, and write the resulting state as
-# lib/dewasm/merman/snapshot.bin.gz. The library restores that state into every
-# fresh instance, so the initialization is paid here instead of on each render.
+# Build step: carry a fresh instance through merman's once-per-instance
+# initialization, locate the hash seed it drew there, and write the resulting
+# state as lib/dewasm/merman/snapshot.bin.gz. The library restores that state into
+# every fresh instance, so the initialization is paid here instead of on each
+# render.
 
 require "zlib"
 
-require_relative "../lib/dewasm/merman"
+require_relative "priming"
 
-FLOWCHART = "flowchart TD\n  A[Start] --> B[Done]\n"
+Snapshot = Dewasm::Merman::Snapshot
+Priming = Dewasm::Merman::Priming
 
-def write(instance, string)
-  bytes = string.b
-  pointer = instance.invoke("merman_alloc", bytes.bytesize)
-  instance.memory.init(pointer, bytes, 0, bytes.bytesize)
-  [pointer, bytes.bytesize]
+# Every render overwrites the seed in place, which only works if the cell the
+# initialization left it in is identified beyond doubt. A toolchain that puts the
+# bytes somewhere else, or in more than one place, stops the build here rather
+# than shipping a snapshot whose renders would share one seed.
+def seed_offset(image)
+  offsets = []
+  offset = 0
+  while (found = image.index(Priming::SEED, offset))
+    offsets << found
+    offset = found + 1
+  end
+  return offsets.first if offsets.size == 1
+
+  raise "the priming seed appears #{offsets.size} times in the initialized memory, " \
+        "expected exactly once: merman's hash seed cell can no longer be located"
 end
 
-instance = Dewasm::Merman::WasmModule.new
-text_pointer, text_length = write(instance, FLOWCHART)
-options_pointer, options_length = write(instance, "{}")
-status = instance.invoke("merman_render_svg", text_pointer, text_length,
-                         options_pointer, options_length)
-raise "priming render failed with status #{status}" unless status.zero?
-
+instance = Priming.instance
 memory = instance.memory
-image = memory.buffer.get_string(0, memory.size * Dewasm::Merman::Snapshot::PAGE_SIZE)
-global = instance.instance_variable_get(:@g0)
-blob = Dewasm::Merman::Snapshot.dump(image, global)
+image = memory.buffer.get_string(0, memory.size * Snapshot::PAGE_SIZE)
+offset = seed_offset(image)
+blob = Snapshot.dump(image, instance.instance_variable_get(:@g0), offset)
 
-path = Dewasm::Merman::Snapshot::PATH
-File.binwrite(path, Zlib::Deflate.deflate(blob, Zlib::BEST_COMPRESSION))
-puts format("wrote %s: %d pages, %.1f MB compressed",
-            path, memory.size, File.size(path) / 1_000_000.0)
+File.binwrite(Snapshot::PATH, Zlib::Deflate.deflate(blob, Zlib::BEST_COMPRESSION))
+puts format("wrote %s: %d pages, seed at %#x, %.1f MB compressed",
+            Snapshot::PATH, memory.size, offset, File.size(Snapshot::PATH) / 1_000_000.0)

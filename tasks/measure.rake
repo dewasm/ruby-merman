@@ -114,10 +114,10 @@ module Measure
         samples.sort[samples.size / 2]
       end
 
-      imports = { "wasi_snapshot_preview1" => Dewasm::Merman::RandomSource.new(Random) }
-
       puts JSON.generate({
-        "instantiate" => timed(#{RUNS}) { Dewasm::Merman::WasmModule.new(imports) },
+        "instantiate" => timed(#{RUNS}) do
+          Dewasm::Merman::WasmModule.new(Dewasm::Merman::IMPORTS)
+        end,
         "render_svg_flowchart" => timed(#{RUNS}) { Dewasm::Merman.render_svg(FLOWCHART) },
         "render_svg_sequence" => timed(#{RUNS}) { Dewasm::Merman.render_svg(SEQUENCE) },
         "render_svg_railroad" => timed(#{RUNS}) { Dewasm::Merman.render_svg(RAILROAD) },

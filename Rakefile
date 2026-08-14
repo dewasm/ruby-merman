@@ -18,11 +18,12 @@ file WASM => WASM_SOURCE do
 end
 
 file GENERATED => WASM do
-  sh "#{DEWASM} #{WASM} --target ruby --mode library " \
+  sh "#{DEWASM} #{WASM} --target ruby --mode library --no-default-wasi " \
      "--module-name Dewasm::Merman::WasmModule -o #{GENERATED}"
 end
 
-file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/prime_snapshot.rb"] do
+file SNAPSHOT => [GENERATED, "lib/dewasm/merman/snapshot.rb", "tools/priming.rb",
+                  "tools/prime_snapshot.rb"] do
   sh RbConfig.ruby, "tools/prime_snapshot.rb"
 end
 

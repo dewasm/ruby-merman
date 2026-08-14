@@ -35,27 +35,20 @@ module Dewasm
     ].freeze
     ASCII_OPTIONS = (ASCII_ENUM_OPTIONS + ASCII_PLAIN_OPTIONS).freeze
 
-    # Supplies `random_get` from a caller-provided source and leaves every other
-    # WASI import to the runtime bundled in the generated module.
-    class RandomSource
-      def initialize(source)
-        @source = source
-      end
-
-      def import(name)
-        name == "random_get" ? method(:random_get) : nil
-      end
-
-      def attach(instance)
-        @memory = instance.memory
-      end
-
-      def random_get(buf_ptr, len)
-        bytes = @source.bytes(len).b
-        @memory.init(buf_ptr, bytes, 0, len)
-        0
+    # The generated module carries no WASI implementation, so this resolves every
+    # WASI import the module declares. A restored instance has merman's
+    # initialization behind it and asks the host for nothing, so a call here means
+    # an assumption behind the shipped snapshot no longer holds.
+    module Wasi
+      def self.import(name)
+        lambda do |*|
+          raise Error, "wasi import #{name} was called at render time; " \
+                       "this is a bug, please report it"
+        end
       end
     end
+
+    IMPORTS = { "wasi_snapshot_preview1" => Wasi }.freeze
 
     module_function
 
@@ -126,8 +119,20 @@ module Dewasm
     private_class_method :date_string
 
     def call(entry_point, text, options, random)
-      instance = WasmModule.new({ "wasi_snapshot_preview1" => RandomSource.new(random) })
-      Snapshot.restore(instance)
+      run(restored_instance(random), entry_point, text, options)
+    end
+    private_class_method :call
+
+    # A fresh instance with the shipped snapshot restored into it and a hash seed
+    # drawn from `random` written over the seed the snapshot recorded.
+    def restored_instance(random)
+      instance = WasmModule.new(IMPORTS)
+      Snapshot.restore(instance, random)
+      instance
+    end
+    private_class_method :restored_instance
+
+    def run(instance, entry_point, text, options)
       text_ptr, text_len = write(instance, text.to_s.encode(Encoding::UTF_8))
       options_ptr, options_len = write(instance, JSON.generate(options.compact))
       status = instance.invoke(entry_point, text_ptr, text_len, options_ptr, options_len)
@@ -138,7 +143,7 @@ module Dewasm
       else raise Error, payload
       end
     end
-    private_class_method :call
+    private_class_method :run
 
     def write(instance, string)
       bytes = string.b
@@ -154,8 +159,8 @@ module Dewasm
       length = instance.invoke("merman_result_len")
       return +"" if length.zero?
 
-      instance.memory
-              .read_string(instance.invoke("merman_result_ptr"), length)
+      instance.memory.buffer
+              .get_string(instance.invoke("merman_result_ptr"), length)
               .force_encoding(Encoding::UTF_8)
     end
     private_class_method :read_result
