@@ -5,9 +5,8 @@
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
 There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
-The gem is built from merman 0.8.0-alpha.5 on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
-Two cargo features are enabled, `complete-svg` and `ascii`; `complete-svg` comprises `svg`, `layout-cytoscape`, `layout-elk`, and `math`.
-merman's raster output features are not built in, so this gem renders SVG and terminal text only.
+The gem is built from merman `0.8.0-alpha.5` on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
+Two cargo features are enabled, `complete-svg` and `ascii`.
 
 ## Install
 
@@ -20,6 +19,8 @@ Or in `Gemfile`:
 ```ruby
 gem "dewasm-merman"
 ```
+
+Ruby 3.4 or newer is required, because the converted module stores WebAssembly linear memory in an `IO::Buffer`.
 
 ## Usage
 
@@ -175,11 +176,6 @@ Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's messa
 Text whose diagram type merman cannot detect is one of those errors (`No diagram type detected matching given configuration for text: ...`), not `nil`.
 The functions return `nil` only where merman itself returns "no diagram" without an error, which in this build's feature set does not occur for text input.
 
-## Requirements
-
-Ruby 3.4 or newer: the generated runtime represents wasm linear memory as an `IO::Buffer`.
-No other gems are needed at run time.
-
 ## How it is built
 
 `wasm/` is a small Rust crate that wraps merman behind a flat wasm ABI: `merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer and returning a status.
@@ -197,17 +193,61 @@ It stays out of the gem, which supplies stubs that raise instead.
 The Rakefile drives everything, and each task depends on the ones before it, so running a later task runs what it needs first.
 From a clean checkout `rake test` is enough; the individual tasks are useful when only one step is in question.
 
-| Task | What it does | What it needs |
-| --- | --- | --- |
-| `rake wasm:build` | Compiles `wasm/` and post-processes it into `wasm/merman.wasm`. | The `wasm32-wasip1` Rust target (`rustup target add wasm32-wasip1`) and `wasm-opt` from Binaryen. |
-| `rake generate` | Runs dewasm over that module into `lib/dewasm/merman/wasm_module.rb`, then runs `tools/capture_snapshot.rb`, which renders one small flowchart so merman initializes and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`. | A dewasm binary, its path in `DEWASM_BIN`. |
-| `rake test` | Runs `test/` against the generated module and the captured snapshot. | `rake generate`. |
-| `rake measure` | Measures sizes, memory, and speed on the machine it runs on, and rewrites the block between the `measurements` markers in `README.md`. | `rake generate`, and a built gem in the checkout for the `.gem` row. |
-| `rake build` | Packages the gem. | `rake generate`. |
-| `rake clean` | Removes the build products and `wasm/target`. | — |
+### `rake wasm:build`
 
-`rake measure` runs `tools/measure.rb`, which can also be run directly as `ruby tools/measure.rb` when the build products are already in place.
+```console
+$ rake wasm:build
+```
+
+Compiles `wasm/` and post-processes it into `wasm/merman.wasm`.
+It needs the `wasm32-wasip1` Rust target (`rustup target add wasm32-wasip1`) and `wasm-opt` from Binaryen.
+
+### `rake generate`
+
+```console
+$ rake generate
+```
+
+Runs dewasm over that module into `lib/dewasm/merman/wasm_module.rb`, then runs `tools/capture_snapshot.rb`, which renders one small flowchart so merman initializes and writes the resulting state to `lib/dewasm/merman/snapshot.bin.gz`.
+It needs a dewasm binary, its path in `DEWASM_BIN`.
+
+### `rake test`
+
+```console
+$ rake test
+```
+
+Runs `test/` against the generated module and the captured snapshot.
+It needs `rake generate`.
+
+### `rake measure`
+
+```console
+$ rake measure
+```
+
+Measures sizes, memory, and speed on the machine it runs on, and rewrites the block between the `measurements` markers in `README.md`.
+It needs `rake generate`, and a built gem in the checkout for the `.gem` row.
 Each timing it reports is a warmup call followed by the median of three measured runs; the sizes come from `File.size`, and the resident memory from `ps` on a child process that has just required the module.
+The measurement itself is `tools/measure.rb`, which can also be run directly as `ruby tools/measure.rb` when the build products are already in place, and which rewrites the same block.
+
+### `rake build`
+
+```console
+$ rake build
+```
+
+Packages the gem.
+It needs `rake generate`.
+
+### `rake clean`
+
+```console
+$ rake clean
+```
+
+Removes the build products and `wasm/target`.
+It needs nothing.
 
 ## Snapshot
 
