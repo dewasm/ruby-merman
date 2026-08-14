@@ -21,6 +21,8 @@ file GENERATED => WASM do
      "--module-name Dewasm::Merman::WasmModule -o #{GENERATED}"
 end
 
+Dir["tasks/*.rake"].sort.each { |path| load path }
+
 namespace :wasm do
   desc "Build wasm/merman.wasm from the Rust wrapper crate"
   task build: WASM
