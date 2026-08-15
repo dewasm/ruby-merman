@@ -50,6 +50,11 @@ task measure: :generate do
   sh RbConfig.ruby, "tools/measure.rb"
 end
 
+desc "Rewrite the diagram type table in README.md from the built module"
+task diagram_types: :generate do
+  sh RbConfig.ruby, "tools/diagram_types.rb"
+end
+
 desc "Build the gem"
 task build: :generate do
   sh "gem build dewasm-merman.gemspec"

@@ -1,6 +1,7 @@
 //! The wasm ABI that the Ruby side of dewasm-merman calls.
 //!
-//! Every entry point takes a UTF-8 diagram text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
+//! Every rendering entry point takes a UTF-8 diagram text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
+//! `merman_diagram_types` takes nothing and returns the diagram type table rows as JSON.
 //! The payload is read back with `merman_result_ptr` and `merman_result_len`.
 
 use std::cell::RefCell;
@@ -371,6 +372,67 @@ pub extern "C" fn merman_render_ascii(
     match renderer.render_ascii_sync(input.text) {
         Ok(Some(text)) => ok(text),
         Ok(None) => none(),
+        Err(e) => error(e),
+    }
+}
+
+/// Declares the rows of the README's diagram type table: each row lists the header keywords a diagram text can open with.
+///
+/// The generated `diagram_type_row` match has no wildcard, so a merman update that adds a diagram type stops this build until the type gets a row here, a sample in `tools/diagram_types.rb`, and a regenerated README table.
+macro_rules! diagram_type_table {
+    ($($variant:ident => [$($header:literal),+]),+ $(,)?) => {
+        static DIAGRAM_TYPE_ROWS: &[&[&str]] = &[$(&[$($header),+]),+];
+
+        #[expect(dead_code, reason = "the exhaustive match is the completeness check")]
+        fn diagram_type_row(model: &merman::RenderSemanticModel) -> &'static [&'static str] {
+            use merman::RenderSemanticModel as Model;
+            match model {
+                // Error and CustomJson are merman-internal render paths, not diagram types a user writes.
+                Model::Error(_) | Model::CustomJson(_) => &[],
+                $(Model::$variant(_) => &[$($header),+]),+
+            }
+        }
+    };
+}
+
+diagram_type_table! {
+    Architecture => ["architecture-beta"],
+    Block => ["block-beta"],
+    C4 => ["C4Context", "C4Container", "C4Component", "C4Dynamic", "C4Deployment"],
+    Class => ["classDiagram"],
+    Cynefin => ["cynefin-beta"],
+    Er => ["erDiagram"],
+    EventModeling => ["eventmodeling"],
+    Flowchart => ["flowchart"],
+    Gantt => ["gantt"],
+    GitGraph => ["gitGraph"],
+    Info => ["info"],
+    Ishikawa => ["ishikawa-beta"],
+    Journey => ["journey"],
+    Kanban => ["kanban"],
+    Mindmap => ["mindmap"],
+    Packet => ["packet-beta"],
+    Pie => ["pie"],
+    QuadrantChart => ["quadrantChart"],
+    Radar => ["radar-beta"],
+    Railroad => ["railroad-beta", "railroad-ebnf-beta", "railroad-abnf-beta", "railroad-peg-beta"],
+    Requirement => ["requirementDiagram"],
+    Sankey => ["sankey-beta"],
+    Sequence => ["sequenceDiagram"],
+    State => ["stateDiagram-v2"],
+    Timeline => ["timeline"],
+    Treemap => ["treemap-beta"],
+    TreeView => ["treeView-beta"],
+    Venn => ["venn-beta"],
+    Wardley => ["wardley-beta"],
+    XyChart => ["xychart-beta"],
+    Zenuml => ["zenuml"],
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn merman_diagram_types() -> u32 {
+    match serde_json::to_string(DIAGRAM_TYPE_ROWS) {
+        Ok(json) => ok(json),
         Err(e) => error(e),
     }
 }
