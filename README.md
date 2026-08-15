@@ -80,18 +80,42 @@ MERMAID
 ## Diagram types
 
 The enabled features are merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
-`render_ascii` covers the subset merman renders as terminal text; asking it for another type raises `Dewasm::Merman::Error`.
+`render_ascii` covers the subset merman renders as terminal text; asking it for a type without a check in the ASCII column raises `Dewasm::Merman::Error`.
+Each row names the keyword the diagram text opens with.
 
-Railroad grammar diagrams take one of four dialect headers: `railroad-beta` for merman's own grammar function syntax, `railroad-ebnf-beta` for EBNF, `railroad-abnf-beta` for ABNF, and `railroad-peg-beta` for PEG.
-
-```ruby
-svg = Dewasm::Merman.render_svg(<<~MERMAID)
-  railroad-beta
-  expr = sequence(nonterminal("term"), zeroOrMore(terminal("+"))) ;
-MERMAID
-```
-
-The result carries `aria-roledescription="railroad"` and the `railroad-rule`, `railroad-nonterminal`, and `railroad-terminal` classes that Mermaid's own railroad output uses.
+| Diagram type | SVG | ASCII |
+| --- | :-: | :-: |
+| `architecture-beta` | ✓ | — |
+| `block-beta` | ✓ | — |
+| `C4Context`, `C4Container`, `C4Component`, `C4Dynamic`, `C4Deployment` | ✓ | — |
+| `classDiagram` | ✓ | ✓ |
+| `cynefin-beta` | ✓ | — |
+| `erDiagram` | ✓ | ✓ |
+| `eventmodeling` | ✓ | — |
+| `flowchart` | ✓ | ✓ |
+| `gantt` | ✓ | ✓ |
+| `gitGraph` | ✓ | ✓ |
+| `info` | ✓ | — |
+| `ishikawa-beta` | ✓ | — |
+| `journey` | ✓ | ✓ |
+| `kanban` | ✓ | ✓ |
+| `mindmap` | ✓ | ✓ |
+| `packet-beta` | ✓ | ✓ |
+| `pie` | ✓ | — |
+| `quadrantChart` | ✓ | — |
+| `radar-beta` | ✓ | — |
+| `railroad-beta`, `railroad-ebnf-beta`, `railroad-abnf-beta`, `railroad-peg-beta` | ✓ | — |
+| `requirementDiagram` | ✓ | — |
+| `sankey-beta` | ✓ | — |
+| `sequenceDiagram` | ✓ | ✓ |
+| `stateDiagram-v2` | ✓ | ✓ |
+| `timeline` | ✓ | ✓ |
+| `treemap-beta` | ✓ | — |
+| `treeView-beta` | ✓ | ✓ |
+| `venn-beta` | ✓ | — |
+| `wardley-beta` | ✓ | — |
+| `xychart-beta` | ✓ | ✓ |
+| `zenuml` | ✓ | — |
 
 Diagram metadata, mirroring Mermaid's `mermaidAPI.parse()` return shape:
 
