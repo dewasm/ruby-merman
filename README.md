@@ -80,18 +80,44 @@ MERMAID
 ## Diagram types
 
 The enabled features are merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
-`render_ascii` covers the subset merman renders as terminal text; asking it for another type raises `Dewasm::Merman::Error`.
+`render_ascii` covers the subset merman renders as terminal text; asking it for a type without a check in the ASCII column raises `Dewasm::Merman::Error`.
+Each row names the keyword the diagram text opens with.
 
-Railroad grammar diagrams take one of four dialect headers: `railroad-beta` for merman's own grammar function syntax, `railroad-ebnf-beta` for EBNF, `railroad-abnf-beta` for ABNF, and `railroad-peg-beta` for PEG.
-
-```ruby
-svg = Dewasm::Merman.render_svg(<<~MERMAID)
-  railroad-beta
-  expr = sequence(nonterminal("term"), zeroOrMore(terminal("+"))) ;
-MERMAID
-```
-
-The result carries `aria-roledescription="railroad"` and the `railroad-rule`, `railroad-nonterminal`, and `railroad-terminal` classes that Mermaid's own railroad output uses.
+<!-- diagram-types:begin -->
+| Diagram type | SVG | ASCII |
+| --- | :-: | :-: |
+| `architecture-beta` | ✓ | — |
+| `block-beta` | ✓ | — |
+| `C4Context`, `C4Container`, `C4Component`, `C4Dynamic`, `C4Deployment` | ✓ | — |
+| `classDiagram` | ✓ | ✓ |
+| `cynefin-beta` | ✓ | — |
+| `erDiagram` | ✓ | ✓ |
+| `eventmodeling` | ✓ | — |
+| `flowchart` | ✓ | ✓ |
+| `gantt` | ✓ | ✓ |
+| `gitGraph` | ✓ | ✓ |
+| `info` | ✓ | — |
+| `ishikawa-beta` | ✓ | — |
+| `journey` | ✓ | ✓ |
+| `kanban` | ✓ | ✓ |
+| `mindmap` | ✓ | ✓ |
+| `packet-beta` | ✓ | ✓ |
+| `pie` | ✓ | — |
+| `quadrantChart` | ✓ | — |
+| `radar-beta` | ✓ | — |
+| `railroad-beta`, `railroad-ebnf-beta`, `railroad-abnf-beta`, `railroad-peg-beta` | ✓ | — |
+| `requirementDiagram` | ✓ | — |
+| `sankey-beta` | ✓ | — |
+| `sequenceDiagram` | ✓ | ✓ |
+| `stateDiagram-v2` | ✓ | ✓ |
+| `timeline` | ✓ | ✓ |
+| `treemap-beta` | ✓ | — |
+| `treeView-beta` | ✓ | ✓ |
+| `venn-beta` | ✓ | — |
+| `wardley-beta` | ✓ | — |
+| `xychart-beta` | ✓ | ✓ |
+| `zenuml` | ✓ | — |
+<!-- diagram-types:end -->
 
 Diagram metadata, mirroring Mermaid's `mermaidAPI.parse()` return shape:
 
@@ -179,6 +205,7 @@ The functions return `nil` only where merman itself returns "no diagram" without
 ## How it is built
 
 `wasm/` is a small Rust crate that wraps merman behind a flat wasm ABI: `merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer and returning a status.
+One more entry point, `merman_diagram_types`, takes nothing and returns the rows of the diagram type table above, which `rake diagram_types` and the tests read.
 It is compiled to `wasm32-wasip1`, post-processed with `wasm-opt -Oz`, and converted to Ruby by dewasm at the revision recorded in `DEWASM_REVISION`, in library mode with `--no-default-wasi`.
 That flag leaves the WASI imports to the embedder, so the generated file carries no WASI implementation at all.
 
@@ -279,6 +306,16 @@ $ rake measure
 
 Refreshes the measurements table in `README.md` with numbers from this machine.
 It needs `rake generate`, and a built gem in the checkout for the `.gem` row.
+
+### `rake diagram_types`
+
+```console
+$ rake diagram_types
+```
+
+Rewrites the diagram type table in `README.md` from the rows the wasm module exports and a render of each row's samples.
+The test suite fails when the table no longer matches what this task writes.
+It needs `rake generate`.
 
 ### `rake build`
 
