@@ -55,6 +55,11 @@ task diagram_types: :generate do
   sh RbConfig.ruby, "tools/diagram_types.rb"
 end
 
+desc "Rewrite the example SVGs in examples/ from the README's example diagrams"
+task example_svgs: :generate do
+  sh RbConfig.ruby, "tools/example_svgs.rb"
+end
+
 desc "Build the gem"
 task build: :generate do
   sh "gem build dewasm-merman.gemspec"

@@ -28,12 +28,30 @@ Ruby 3.4 or newer is required, because the converted module stores WebAssembly l
 require "dewasm/merman"
 
 svg = Dewasm::Merman.render_svg(<<~MERMAID)
-  flowchart TD
-    A[Start] --> B[Done]
+  flowchart LR
+    A[Commit] --> B{CI passes?}
+    B -->|Yes| C[Merge]
+    B -->|No| D[Fix]
+    D --> A
 MERMAID
 
 File.write("flowchart.svg", svg)
 ```
+
+![The example flowchart rendered to SVG](examples/flowchart.svg)
+
+Railroad grammar diagrams render the same way:
+
+```ruby
+svg = Dewasm::Merman.render_svg(<<~MERMAID)
+  railroad-ebnf-beta
+  expr = term , { "+" , term } ;
+  term = factor , { "*" , factor } ;
+  factor = number | "(" , expr , ")" ;
+MERMAID
+```
+
+![The example railroad diagram rendered to SVG](examples/railroad.svg)
 
 Terminal text instead of SVG:
 
@@ -315,6 +333,17 @@ $ rake diagram_types
 
 Rewrites the diagram type table in `README.md` from the rows the wasm module exports and a render of each row's samples.
 The test suite fails when the table no longer matches what this task writes.
+It needs `rake generate`.
+
+### `rake example_svgs`
+
+```console
+$ rake example_svgs
+```
+
+Rewrites the SVG files under `examples/` from the README's example diagrams.
+They are rendered with `render_svg_resvg_safe`, whose output displays as an image without `foreignObject` support.
+The test suite fails when a committed SVG no longer matches what this task writes.
 It needs `rake generate`.
 
 ### `rake build`
