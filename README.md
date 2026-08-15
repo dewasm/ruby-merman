@@ -224,7 +224,6 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 
 > [!IMPORTANT]
 > Loading this gem costs **over a gigabyte of resident memory** and several seconds, paid once per process.
-> A small container will not hold it.
 
 The rows fall into three groups.
 The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, the state snapshot, and the packaged gem.
