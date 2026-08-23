@@ -17,7 +17,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # Building merman for wasm32-wasip1 and loading the ~50 MB generated Ruby dominate the wall time; the build is skipped when the wasm build products cache hits.
+    # Building merman for wasm32-wasip1 and loading the ~50 MB generated Ruby dominate the wall time; both run on every job.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -51,35 +51,8 @@ jobs:
       - name: Export DEWASM_BIN
         run: echo "DEWASM_BIN=$HOME/.dewasm/bin/dewasm" >> "$GITHUB_ENV"
       - run: bundle install --jobs 4
-      - name: Read the rustc version
-        id: rustc
-        run: echo "version=$(rustc --version | tr ' ()' '-')" >> "$GITHUB_OUTPUT"
-      # The products depend on the wrapper sources, the locked dependencies, the Rust toolchain, and the binaryen release; the key carries them all.
-      - uses: actions/cache@v6
-        id: wasm-cache
-        with:
-          path: |
-            wasm/target/wasm32-wasip1/release/merman_wasm.wasm
-            wasm/merman.wasm
-          key: wasm-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ env.BINARYEN_VERSION }}-${{ hashFiles('wasm/src/**', 'wasm/Cargo.toml', 'wasm/Cargo.lock') }}
-      # Runs only when the wasm build products cache missed, so the usual run pays nothing for it.
-      - uses: Swatinem/rust-cache@v2
-        if: steps.wasm-cache.outputs.cache-hit != 'true'
-        with:
-          workspaces: wasm
-          shared-key: test
-          # Only main writes the shared build cache; PRs restore it read-only to keep the repo under the 10 GB cache budget.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          # This action's post-job cleanup deletes workspace-member artifacts from a cached target directory, and that post step runs before the wasm build products cache saves (post steps run in reverse step order), which would strip merman_wasm.wasm out of the saved products.
-          # Caching only ~/.cargo avoids that; a cache-miss run recompiles the dependency crates instead.
-          cache-targets: false
       - name: Build the wasm module
-        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: bundle exec rake wasm:build
-      # The fresh checkout gives the wasm sources newer mtimes than the restored products, so without this the rake generate file tasks would rebuild them.
-      - name: Mark the restored wasm build products current
-        if: steps.wasm-cache.outputs.cache-hit == 'true'
-        run: touch wasm/target/wasm32-wasip1/release/merman_wasm.wasm wasm/merman.wasm
       - run: bundle exec rake generate
       - run: bundle exec rake test
 
