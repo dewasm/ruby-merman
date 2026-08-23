@@ -213,41 +213,19 @@ Options on `render_ascii`:
 - `max_grid_cells:`,
 - `relation_summary_diagnostics:`.
 
-An unknown keyword raises `ArgumentError`.
-
-`random:` accepts anything that responds to `bytes(n)` and returns that many bytes.
-It supplies the hash seed the render starts from, which merman's hash maps derive their own seeds from.
-No output in this build depends on it: two renders of the same text with different seeds agree byte for byte.
-
 Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's message, for example `Diagram parse error (flowchart-v2): Unexpected character at 15` or `` ASCII rendering does not support diagram type `pie` ``.
-Text whose diagram type merman cannot detect is one of those errors (`No diagram type detected matching given configuration for text: ...`), not `nil`.
-The functions return `nil` only where merman itself returns "no diagram" without an error, which in this build's feature set does not occur for text input.
 
 ## How it is built
 
-`wasm/` is a small Rust crate that wraps merman behind a flat wasm ABI: `merman_alloc`, `merman_result_ptr`, `merman_result_len`, and one entry point per function taking a text pointer and an options JSON pointer and returning a status.
-One more entry point, `merman_diagram_types`, takes nothing and returns the rows of the diagram type table above, which `rake diagram_types` and the tests read.
-It is compiled to `wasm32-wasip1`, post-processed with `wasm-opt -Oz`, and converted to Ruby by dewasm at the revision recorded in `DEWASM_REVISION`, in library mode with `--no-default-wasi`.
-That flag leaves the WASI imports to the embedder, so the generated file carries no WASI implementation at all.
+`wasm/` is a small Rust crate that wraps merman behind a flat wasm ABI.
+It is compiled to `wasm32-wasip1`, post-processed with `wasm-opt`, and converted to Ruby by `dewasm`.
 
 Neither build product is committed: `lib/dewasm/merman/wasm_module.rb` and `lib/dewasm/merman/snapshot.bin.gz` are produced by the build and shipped in the gem.
-The initialization harness in `tools/snapshot_util.rb`, which the tests share with the build, supplies the few imports merman's initialization asks for: a recorded seed, the clocks, an empty environment, and standard error for a panic message.
-It stays out of the gem, which supplies stubs that raise instead.
-
-`wasm/Cargo.lock` is committed because merman's sibling crates publish alpha versions that move independently, and a mixed set does not compile.
 
 ## Snapshot
 
-merman builds its font metrics table and its theme configuration on the first render of an instance, and that work costs far more than the render itself.
-The build does one render and ships the state it leaves behind as `snapshot.bin.gz`: the module's linear memory and its one mutable global, which is all the wasm module has, so a restored instance renders exactly what a freshly initialized one renders.
-Every function is a one-shot module function: it creates an instance, restores that snapshot into it, injects a fresh hash seed, renders, and returns.
-Nothing is retained between calls, so no linear memory is held after a call returns and there is no mutable state to synchronize; the snapshot itself is read once per process and only ever copied from.
-A missing snapshot file, or one of another version, is an error asking for `rake generate`: there is no second path that would render the same output more slowly.
-
-A restored instance must not keep the hash seed merman drew while initializing, so every render writes bytes from its `random:` source over it and hashes with a seed of its own while the tables built around the old one keep working.
-The build finds that offset by searching for the exact seed bytes it handed out and insisting on exactly one match, so a toolchain that moves the seed elsewhere stops the build instead of shipping instances that share one seed.
-
-The imports the wasm module declares are all resolved to stubs that raise `Dewasm::Merman::Error`, and none of them fires while rendering: a render reads no clock, no environment, no file, and no operating system randomness, so it reaches nothing outside the artifact.
+merman spends a few seconds initializing internal data before its first render.
+The gem avoids that cost by computing the initialized memory ahead of time and shipping it as `snapshot.bin.gz`, which each render restores instead of running the initialization.
 
 ## Size, memory, and speed
 
@@ -270,24 +248,16 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | `parse_metadata` | 96 ms |
 <!-- measurements:end -->
 
-> [!IMPORTANT]
-> Loading this gem costs **over a gigabyte of resident memory** and several seconds, paid once per process.
-
-The rows fall into three groups.
-The first ones are what ships: the wasm module, the Ruby source dewasm generates from it, the state snapshot, and the packaged gem.
-The next two are that load cost, in time and in resident memory.
-The rest are per-call costs, one module instantiation and one call of each function.
-
-Three facts hold whatever the magnitudes are.
-Resident memory after `require` is dominated by the instruction sequences of the loaded code, not by rendering, so it does not grow with the number of calls.
-Instantiation is a small part of a one-shot render, so the API that instantiates per call costs little over one that reuses an instance, and it keeps no wasm memory alive between calls.
-Turning merman features off buys size but not speed: a build of the same release with only the `svg` feature produces a smaller wasm module and the same time per render, and it pays for that size with the diagram types it drops.
-
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
 
-If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer, but covers fewer diagram types.
+> [!IMPORTANT]
+> Loading this gem costs **~1 GB of resident memory** and several seconds.
+>
+> If those sizes or that resident memory rule this gem out, [dewasm-pozeiden](https://github.com/dewasm/ruby-pozeiden) is a much smaller Mermaid renderer, but covers fewer diagram types.
 
 ## Tasks
+
+<details>
 
 The Rakefile drives everything, and each task depends on the ones before it, so running a later task runs what it needs first.
 From a clean checkout `rake test` is enough; the individual tasks are useful when only one step is in question.
@@ -366,6 +336,8 @@ $ rake clean
 
 Removes the build products and `wasm/target`.
 It needs nothing.
+
+</details>
 
 ## License
 
