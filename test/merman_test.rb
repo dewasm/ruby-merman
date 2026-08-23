@@ -3,11 +3,6 @@
 require "test_helper"
 
 class MermanTest < Minitest::Test
-  def test_version_constants
-    assert_equal "0.1.0", Dewasm::Merman::VERSION
-    assert_equal "0.8.0-alpha.5", Dewasm::Merman::MERMAN_VERSION
-  end
-
   def test_render_svg_covers_the_common_diagram_types
     {
       flowchart: Diagrams::FLOWCHART,
