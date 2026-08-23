@@ -257,14 +257,14 @@ Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Generated `wasm_module.rb` | 45.0 MB |
 | Shipped `snapshot.bin.gz` | 2.7 MB |
 | Packaged `.gem` | 9.5 MB |
-| `require "dewasm/merman"` | 2.9 s |
-| Resident memory after `require` | 958.5 MB |
-| One module instantiation | 30 ms |
-| `render_svg`, flowchart | 58 ms |
-| `render_svg`, sequence diagram | 73 ms |
-| `render_svg`, railroad diagram | 63 ms |
-| `render_ascii`, flowchart | 43 ms |
-| `parse_metadata` | 98 ms |
+| `require "dewasm/merman"` | 3.2 s |
+| Resident memory after `require` | 960.3 MB |
+| One module instantiation | 31 ms |
+| `render_svg`, flowchart | 60 ms |
+| `render_svg`, sequence diagram | 76 ms |
+| `render_svg`, railroad diagram | 65 ms |
+| `render_ascii`, flowchart | 44 ms |
+| `parse_metadata` | 96 ms |
 <!-- measurements:end -->
 
 > [!IMPORTANT]

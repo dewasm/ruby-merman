@@ -47,7 +47,7 @@ jobs:
         run: |
           cargo install --git https://github.com/dewasm/dewasm \
             --rev "${{ steps.dewasm.outputs.revision }}" --locked \
-            --root ~/.dewasm dewasm-cli
+            --root ~/.dewasm dewasm
       - name: Export DEWASM_BIN
         run: echo "DEWASM_BIN=$HOME/.dewasm/bin/dewasm" >> "$GITHUB_ENV"
       - run: bundle install --jobs 4
