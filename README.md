@@ -1,11 +1,14 @@
 # dewasm-merman
 
+[![Test](https://github.com/dewasm/ruby-merman/actions/workflows/test.yml/badge.svg)](https://github.com/dewasm/ruby-merman/actions/workflows/test.yml)
+[![Gem](https://img.shields.io/gem/v/dewasm-merman)](https://rubygems.org/gems/dewasm-merman)
+
 **Mermaid** diagrams rendered in **pure Ruby**.
 
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
 There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
-The gem is built from merman `0.8.0-alpha.5` on crates.io, pinned in `wasm/Cargo.toml` and surfaced as `Dewasm::Merman::MERMAN_VERSION`.
+The gem is built from merman `0.8.0-alpha.5` on crates.io.
 Two cargo features are enabled: `complete-svg` and `ascii`.
 
 ## Install
