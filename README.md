@@ -1,5 +1,8 @@
 # dewasm-merman
 
+[![Test](https://github.com/dewasm/ruby-merman/actions/workflows/test.yml/badge.svg)](https://github.com/dewasm/ruby-merman/actions/workflows/test.yml)
+[![Gem](https://img.shields.io/gem/v/dewasm-merman)](https://rubygems.org/gems/dewasm-merman)
+
 **Mermaid** diagrams rendered in **pure Ruby**.
 
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
