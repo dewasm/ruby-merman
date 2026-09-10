@@ -20,9 +20,13 @@ class MermanTest < Minitest::Test
     end
   end
 
-  def test_render_svg_readable_and_resvg_safe
-    assert Dewasm::Merman.render_svg_readable(Diagrams::FLOWCHART).start_with?("<svg")
-    assert Dewasm::Merman.render_svg_resvg_safe(Diagrams::FLOWCHART).start_with?("<svg")
+  def test_render_svg_pipelines
+    readable = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, pipeline: :readable)
+    resvg_safe = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, pipeline: :resvg_safe)
+
+    assert readable.start_with?("<svg")
+    assert resvg_safe.start_with?("<svg")
+    refute_includes resvg_safe, "<foreignObject"
   end
 
   def test_diagram_id_appears_in_the_svg
@@ -75,6 +79,31 @@ class MermanTest < Minitest::Test
     end
   end
 
+  def test_render_ascii_rejects_an_unknown_resources_option
+    assert_raises(ArgumentError) do
+      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, resources: { no_such_limit: 1 })
+    end
+  end
+
+  def test_render_ascii_resources_limit_is_enforced
+    assert_raises(Dewasm::Merman::Error) do
+      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, resources: { max_grid_cells: 1 })
+    end
+  end
+
+  def test_render_ascii_viewport_trim_removes_trailing_spaces
+    text =
+      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, viewport: { trim: :trim_trailing_spaces })
+
+    assert(text.lines.none? { |line| line.chomp.end_with?(" ") })
+  end
+
+  def test_parse_options_lenient_renders_the_error_diagram
+    svg = Dewasm::Merman.render_svg("flowchart TD\n  ]]] ---", parse_options: :lenient)
+
+    assert svg.start_with?("<svg")
+  end
+
   def test_parse_metadata_returns_a_hash
     metadata = Dewasm::Merman.parse_metadata(Diagrams::PIE)
 
@@ -93,7 +122,7 @@ class MermanTest < Minitest::Test
   def test_text_that_is_not_a_diagram_raises
     error = assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg("not a diagram") }
 
-    assert_includes error.message, "No diagram type detected"
+    assert_includes error.message, "No Mermaid diagram type detected"
   end
 
   def test_broken_diagram_raises
@@ -135,10 +164,8 @@ class MermanTest < Minitest::Test
 
   def test_render_svg_is_deterministic
     [Diagrams::FLOWCHART, Diagrams::RAILROAD].each do |text|
-      first =
-        Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random: Random.new(42))
-      second =
-        Dewasm::Merman.render_svg(text, deterministic_text_measurer: true, random: Random.new(42))
+      first = Dewasm::Merman.render_svg(text, random: Random.new(42))
+      second = Dewasm::Merman.render_svg(text, random: Random.new(42))
 
       assert_equal first, second
     end

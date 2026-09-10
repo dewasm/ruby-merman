@@ -92,15 +92,11 @@ module Dewasm
       # The public functions with their default options, each on its own freshly initialized instance.
       # They reach into the private call path on purpose: taking the same path with a different instance is what makes the comparison against a restored render meaningful.
       def render_svg(text)
-        call("merman_render_svg", text, Merman.send(:svg_options, nil, nil, false))
+        call("merman_render_svg", text, { "svg" => { "pipeline" => "parity" } })
       end
 
       def render_ascii(text)
-        call(
-          "merman_render_ascii",
-          text,
-          { "ascii" => Merman.send(:ascii_option_json, charset: :unicode) }
-        )
+        call("merman_render_ascii", text, {})
       end
 
       def parse_metadata(text)

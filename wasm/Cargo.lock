@@ -236,9 +236,9 @@ dependencies = [
 
 [[package]]
 name = "dugong"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49e042d0154d5b36580c5151b45baeb008e5fdb00a918ea203e85f24f2c921e6"
+checksum = "a773dcadac5836ffd8b9f3836beeb02ac382b55e2e5dd40c0061a29a9279ae5c"
 dependencies = [
  "dugong-graphlib",
  "rustc-hash",
@@ -248,9 +248,9 @@ dependencies = [
 
 [[package]]
 name = "dugong-graphlib"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "219fd4382e892b3eb905d02a7cfb30ca60a7dad662a554b4aebf056f270c7649"
+checksum = "9d39983e5e33f39b7289f3172bf2b4d859413e59ab976c5146d00dc95b6f237f"
 dependencies = [
  "hashbrown",
  "rustc-hash",
@@ -405,31 +405,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "icu_collator"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59eea194d189ca897bcb960fd2130f9e7d53998460d4d32e85a60b10d5507cf4"
-dependencies = [
- "icu_collator_data",
- "icu_collections",
- "icu_locale_core",
- "icu_locale_fallback",
- "icu_normalizer",
- "icu_properties",
- "icu_provider",
- "smallvec",
- "utf16_iter",
- "utf8_iter",
- "zerovec",
-]
-
-[[package]]
-name = "icu_collator_data"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7d7e54efdddeb1208c08dd5d32b53a879ac00d2d3d051b2255fd26821d16368"
-
-[[package]]
 name = "icu_collections"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -451,31 +426,10 @@ checksum = "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb"
 dependencies = [
  "displaydoc",
  "litemap",
- "serde",
  "tinystr",
  "writeable",
  "zerovec",
 ]
-
-[[package]]
-name = "icu_locale_fallback"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "251af8e57c9400e3eb58242fe5b8b1152b2a64fdf4cf632f923c38ccee6f2fa9"
-dependencies = [
- "icu_locale_core",
- "icu_locale_fallback_data",
- "icu_provider",
- "potential_utf",
- "tinystr",
- "zerovec",
-]
-
-[[package]]
-name = "icu_locale_fallback_data"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "decf2a22ec8fa68f1a0c1129a3f8583f8f8bc24e8b9ccbe98ead99f62a4dc3a8"
 
 [[package]]
 name = "icu_normalizer"
@@ -488,9 +442,6 @@ dependencies = [
  "icu_properties",
  "icu_provider",
  "smallvec",
- "utf16_iter",
- "utf8_iter",
- "write16",
  "zerovec",
 ]
 
@@ -529,8 +480,6 @@ checksum = "92a7ed671a6aad807a8651a2e1782a6598fda9ce5185dd8158549e95a91c6428"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
- "serde",
- "stable_deref_trait",
  "writeable",
  "yoke",
  "zerofrom",
@@ -661,9 +610,9 @@ dependencies = [
 
 [[package]]
 name = "manatee"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9741945d2b000ec5182e0c35edcff22cb592a3eda4e6efe34663718e3e54617f"
+checksum = "96af607c425bbed5997213ad61ab3d21f97b4fe5a87d3a49178ae4b4231a12b8"
 dependencies = [
  "indexmap",
  "libm",
@@ -688,9 +637,9 @@ dependencies = [
 
 [[package]]
 name = "merman"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "263b2e923bce36d7e5d799af599e762f0160f0e6f3a397564e913ef35d7718f6"
+checksum = "e39537e033f102eda0fcd527e2cbe4135df670b90a4b2a3ad0b0a86466a709d6"
 dependencies = [
  "merman-ascii",
  "merman-core",
@@ -701,20 +650,24 @@ dependencies = [
 
 [[package]]
 name = "merman-ascii"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eb56780d3175ccea83b3c318f0863251f955b11a6e5f7bb3de2de038ab561cb"
+checksum = "161b3f01fc975752ba9025d2a9427493e2197f4d0e068fbb8786af496a3dd56f"
 dependencies = [
+ "dugong",
  "merman-core",
+ "serde",
+ "serde_json",
  "thiserror 2.0.20",
+ "unicode-segmentation",
  "unicode-width",
 ]
 
 [[package]]
 name = "merman-core"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dae7b72e61bbc56c7bebb94ef0fa831886d66057d17298338b2a3cac6ab71def"
+checksum = "74f951b8cb5238ee6e12b03e38c0327e19be9f1a19db9d26ad7dcad7f8dff8d7"
 dependencies = [
  "euclid",
  "granit-parser",
@@ -729,23 +682,25 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "unicode-general-category",
+ "unicode-segmentation",
+ "unicode-width",
  "url",
 ]
 
 [[package]]
 name = "merman-elk-layered"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1613d8bbad3da6ee848eddb971907a1a036d51ebaff8f38a56ddf7caa0ba00f"
+checksum = "af7d1ba0890a895a6b5f6c9ebfd5801df9c462e3c96a44c0b19b09cf9c9b3cd1"
 dependencies = [
  "thiserror 2.0.20",
 ]
 
 [[package]]
 name = "merman-layout-elk"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7576d16dd7964d6b927fcc2179313baa45c51c23c36f5a0478e4434e08c0a35"
+checksum = "ee4f3e22ac7ae95790b55160617db5c36b29e028e1815844cc4223083af77ffc"
 dependencies = [
  "merman-elk-layered",
  "thiserror 2.0.20",
@@ -753,16 +708,14 @@ dependencies = [
 
 [[package]]
 name = "merman-render"
-version = "0.8.0-alpha.5"
+version = "0.8.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd17bfdd6866df20f34a8697eba00e0b86efa734de0b6a629b07a755d748fd68"
+checksum = "27300d2eda1e2437507c3c66c8335547312680c048b5a78c758b5e9c1ccd923a"
 dependencies = [
  "base64",
  "cssparser",
  "data-url",
  "dugong",
- "icu_collator",
- "icu_locale_core",
  "indexmap",
  "kurbo",
  "libm",
@@ -1000,8 +953,6 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0103b1cef7ec0cf76490e969665504990193874ea05c85ff9bab8b911d0a0564"
 dependencies = [
- "serde_core",
- "writeable",
  "zerovec",
 ]
 
@@ -1209,9 +1160,9 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "roughr-merman"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53a5164a22788a332e3fc995ba74d9d18a7f15ebdcefa6820e26f2e6cd6ca7d7"
+checksum = "0a1b0137cf48e915300be3fe4cf9f8f9a2af242ebf41b6f8fa716c2fd482f00b"
 dependencies = [
  "euclid",
  "num-traits",
@@ -1537,7 +1488,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643"
 dependencies = [
  "displaydoc",
- "serde_core",
  "zerovec",
 ]
 
@@ -1633,12 +1583,6 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
-
-[[package]]
-name = "utf16_iter"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8232dd3cdaed5356e0f716d285e4b40b932ac434100fe9b7e0e8e935b9e6246"
 
 [[package]]
 name = "utf8_iter"
@@ -1742,12 +1686,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "write16"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1890f4022759daae28ed4fe62859b1236caebfc61ede2f63ed4e695f3f6d936"
-
-[[package]]
 name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1806,7 +1744,6 @@ dependencies = [
  "displaydoc",
  "yoke",
  "zerofrom",
- "zerovec",
 ]
 
 [[package]]
@@ -1815,7 +1752,6 @@ version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94b5c6b5976d66c1d703c4fd17d3f5e43c8cedaacf604961b171adc7130896d8"
 dependencies = [
- "serde",
  "yoke",
  "zerofrom",
  "zerovec-derive",

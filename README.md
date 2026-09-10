@@ -8,8 +8,8 @@
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
 There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
-The gem is built from merman `0.8.0-alpha.5` on crates.io.
-Two cargo features are enabled: `complete-svg` and `ascii`.
+The gem is built from merman `0.8.0-alpha.6` on crates.io.
+Two cargo features are enabled: `complete-svg-elk` and `ascii`.
 
 ## Install
 
@@ -169,49 +169,67 @@ MERMAID
 ## API
 
 A single call renders the given diagram text to SVG or to terminal text.
-The table maps each function to the merman API it wraps.
+The functions and their keyword groups mirror merman's request model.
 
 | Ruby | merman |
 | --- | --- |
-| `Dewasm::Merman.render_svg(text, **options)` | `HeadlessRenderer::render_svg_sync` |
-| `Dewasm::Merman.render_svg_readable(text, **options)` | `HeadlessRenderer::render_svg_readable_sync` |
-| `Dewasm::Merman.render_svg_resvg_safe(text, **options)` | `HeadlessRenderer::render_resvg_compatible_svg_sync` |
-| `Dewasm::Merman.render_ascii(text, **options)` | `HeadlessAsciiRenderer::render_ascii_sync` |
-| `Dewasm::Merman.parse_metadata(text, **options)` | `HeadlessRenderer::parse_metadata_sync` |
+| `Dewasm::Merman.render_svg(text, **options)` | `Renderer::render` with `RenderRequest::svg` |
+| `Dewasm::Merman.render_ascii(text, **options)` | `Renderer::render` with `RenderRequest::ascii` |
+| `Dewasm::Merman.parse_metadata(text, **options)` | `Engine::parse_metadata_sync` |
 
-Options on the three SVG functions (`render_svg`, `render_svg_readable`, and `render_svg_resvg_safe`):
+Options shared by `render_svg` and `render_ascii`, carrying the operation-level merman APIs:
 
 | Option | Default | merman |
 | --- | --- | --- |
-| `site_config:` | `nil` | `with_site_config`, a Hash carried as JSON |
-| `diagram_id:` | `nil` | `with_diagram_id` |
-| `deterministic_text_measurer:` | `false` | `with_deterministic_text_measurer` |
-| `random:` | `Random` | the source of the render's hash seed |
-
-`parse_metadata` takes `site_config:` and `random:`.
-
-Options on `render_ascii`:
-
-| Option | Default | merman |
-| --- | --- | --- |
-| `charset:` | `:unicode` | `AsciiRenderOptions#charset`, `:unicode` or `:ascii` |
-| `strict_parsing:` | `nil` | `nil` keeps merman's own parse default; `with_strict_parsing` when true, `with_lenient_parsing` when false |
+| `site_config:` | `nil` | `Engine#with_site_config`, a Hash carried as JSON |
+| `parse_options:` | `nil` | `ParseOptions`: `:strict` or `:lenient`; `nil` keeps merman's own default |
 | `fixed_today:` | `nil` | `RuntimePolicy#with_fixed_today`, a `Date` |
 | `fixed_local_offset_minutes:` | `nil` | `RuntimePolicy#try_with_fixed_local_offset_minutes` |
-| `site_config:` | `nil` | `with_site_config` |
 | `random:` | `Random` | the source of the render's hash seed |
 
-`render_ascii` also takes the remaining `AsciiRenderOptions` fields as keywords, each with merman's default:
+Options on `render_svg`, mirroring `SvgRequest`:
 
+| Option | Default | merman |
+| --- | --- | --- |
+| `pipeline:` | `:parity` | `SvgPipeline`: `:parity`, `:readable` (`<text>` fallbacks for `<foreignObject>` labels), or `:resvg_safe` (restricted to what usvg, resvg, and raster converters accept) |
+| `diagram_id:` | `nil` | `SvgRenderOptions#diagram_id` |
+| `viewbox_padding:` | merman's default | `SvgRenderOptions#viewbox_padding` |
+
+Options on `render_ascii`, mirroring the three parts of `AsciiRequest`:
+
+| Option | merman |
+| --- | --- |
+| the `AsciiRenderOptions` keywords below | `AsciiRequest#options` |
+| `resources:`, a Hash | `AsciiRequest#resources`, an `AsciiResourcePolicy` |
+| `viewport:`, a Hash | `AsciiRequest#viewport`, an `AsciiViewportPolicy` |
+
+The `AsciiRenderOptions` fields come as keywords, each with merman's default:
+
+- `charset:` (`:unicode` or `:ascii`),
+- `terminal_width_profile:` (`:unicode` or `:cjk`),
+- `layout_profile:` (`:canonical` or `:compact`),
 - `default_direction:` (`:left_right` or `:top_down`),
 - `color_mode:` (`:plain`, `:ansi16`, `:ansi256`, `:true_color`, `:html`),
 - `color_theme:` (`:light` or `:dark`),
 - `box_border_padding:`,
 - `graph_padding_x:`, `graph_padding_y:`,
+- `flowchart_node_label_wrap_width:`,
 - `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`, `sequence_mirror_actors:`,
 - `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`,
-- `max_grid_cells:`,
 - `relation_summary_diagnostics:`.
+
+The `resources:` Hash selects a profile and overrides individual limits, each with merman's default:
+
+- `profile:` (`:interactive`, `:constrained`, `:trusted_native`, or `:unbounded_for_trusted_input`),
+- `max_grid_cells:`, `max_layout_work_units:`, `max_document_cells:`, `max_output_bytes:`, `max_grapheme_bytes:`, `max_nesting_depth:`.
+
+The `viewport:` Hash carries the `AsciiViewportPolicy` fields, each with merman's default:
+
+- `max_width:`,
+- `overflow:` (`:allow`, `:fallback`, or `:error`),
+- `trim:` (`:preserve` or `:trim_trailing_spaces`).
+
+`parse_metadata` takes `site_config:` and `random:`.
 
 Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's message, for example `Diagram parse error (flowchart-v2): Unexpected character at 15` or `` ASCII rendering does not support diagram type `pie` ``.
 
@@ -230,22 +248,22 @@ The gem avoids that cost by computing the initialized memory ahead of time and s
 ## Size, memory, and speed
 
 <!-- measurements:begin -->
-Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
+Measured on macOS 26.6.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
 
 | Quantity | Value |
 | --- | --- |
-| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.8 MB |
-| Generated `wasm_module.rb` | 45.0 MB |
-| Shipped `snapshot.bin.gz` | 2.7 MB |
-| Packaged `.gem` | 9.5 MB |
-| `require "dewasm/merman"` | 3.2 s |
-| Resident memory after `require` | 960.3 MB |
-| One module instantiation | 31 ms |
-| `render_svg`, flowchart | 60 ms |
-| `render_svg`, sequence diagram | 76 ms |
-| `render_svg`, railroad diagram | 65 ms |
-| `render_ascii`, flowchart | 44 ms |
-| `parse_metadata` | 96 ms |
+| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.3 MB |
+| Generated `wasm_module.rb` | 49.0 MB |
+| Shipped `snapshot.bin.gz` | 1.3 MB |
+| Packaged `.gem` | 8.5 MB |
+| `require "dewasm/merman"` | 3.8 s |
+| Resident memory after `require` | 1148.6 MB |
+| One module instantiation | 17 ms |
+| `render_svg`, flowchart | 141 ms |
+| `render_svg`, sequence diagram | 205 ms |
+| `render_svg`, railroad diagram | 81 ms |
+| `render_ascii`, flowchart | 114 ms |
+| `parse_metadata` | 80 ms |
 <!-- measurements:end -->
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
@@ -315,7 +333,7 @@ $ rake example_svgs
 ```
 
 Rewrites the SVG files under `examples/` from the README's example diagrams.
-They are rendered with `render_svg_resvg_safe`, whose output displays as an image without `foreignObject` support.
+They are rendered with the `:resvg_safe` pipeline, whose output displays as an image without `foreignObject` support.
 The test suite fails when a committed SVG no longer matches what this task writes.
 It needs `rake generate`.
 
@@ -345,6 +363,6 @@ This repository's own code is MIT: see `LICENSE`.
 
 merman is dual licensed under MIT or Apache-2.0, and this gem takes it under MIT: see `LICENSE-MERMAN`.
 The gem also ships merman's `THIRD_PARTY_NOTICES-MERMAN.md`, upstream's inventory of the projects merman derives from (Mermaid itself among them).
-That inventory covers every upstream artifact; this gem contains only the `complete-svg` and `ascii` feature closure.
+That inventory covers every upstream artifact; this gem contains only the `complete-svg-elk` and `ascii` feature closure.
 
 merman is not affiliated with or endorsed by Mermaid.

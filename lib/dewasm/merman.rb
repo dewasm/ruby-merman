@@ -18,11 +18,19 @@ module Dewasm
     STATUS_ERROR = 2
     private_constant :STATUS_OK, :STATUS_NONE, :STATUS_ERROR
 
-    ASCII_ENUM_OPTIONS = %i[charset default_direction color_mode color_theme].freeze
+    ASCII_ENUM_OPTIONS = %i[
+      charset
+      terminal_width_profile
+      layout_profile
+      default_direction
+      color_mode
+      color_theme
+    ].freeze
     ASCII_PLAIN_OPTIONS = %i[
       box_border_padding
       graph_padding_x
       graph_padding_y
+      flowchart_node_label_wrap_width
       sequence_participant_spacing
       sequence_message_spacing
       sequence_self_message_width
@@ -30,10 +38,22 @@ module Dewasm
       xychart_vertical_plot_height
       xychart_category_band_width
       xychart_horizontal_plot_width
-      max_grid_cells
       relation_summary_diagnostics
     ].freeze
     ASCII_OPTIONS = (ASCII_ENUM_OPTIONS + ASCII_PLAIN_OPTIONS).freeze
+
+    RESOURCE_OPTIONS = %i[
+      profile
+      max_grid_cells
+      max_layout_work_units
+      max_document_cells
+      max_output_bytes
+      max_grapheme_bytes
+      max_nesting_depth
+    ].freeze
+    VIEWPORT_OPTIONS = %i[max_width overflow trim].freeze
+    SYMBOL_VALUED_OPTIONS = %i[profile overflow trim].freeze
+    private_constant :RESOURCE_OPTIONS, :VIEWPORT_OPTIONS, :SYMBOL_VALUED_OPTIONS
 
     # The generated module carries no WASI implementation, so this resolves every WASI import the module declares.
     # A restored instance asks the host for nothing, so a call here means an assumption behind the shipped snapshot no longer holds.
@@ -51,104 +71,85 @@ module Dewasm
 
     module_function
 
-    # Renders the Mermaid parity SVG, or nil when the text is not a recognized diagram.
+    # Renders SVG, or nil when the text is not a recognized diagram.
+    # The pipeline is merman's SVG postprocess preset: :parity, :readable, or :resvg_safe.
     def render_svg(
       text,
-      site_config: nil,
+      pipeline: :parity,
       diagram_id: nil,
-      deterministic_text_measurer: false,
+      viewbox_padding: nil,
+      site_config: nil,
+      parse_options: nil,
+      fixed_today: nil,
+      fixed_local_offset_minutes: nil,
       random: Random
     )
-      call(
-        "merman_render_svg",
-        text,
-        svg_options(site_config, diagram_id, deterministic_text_measurer),
-        random
-      )
-    end
-
-    # Renders SVG with readable `<text>` fallbacks for `<foreignObject>` labels.
-    def render_svg_readable(
-      text,
-      site_config: nil,
-      diagram_id: nil,
-      deterministic_text_measurer: false,
-      random: Random
-    )
-      call(
-        "merman_render_svg_readable",
-        text,
-        svg_options(site_config, diagram_id, deterministic_text_measurer),
-        random
-      )
-    end
-
-    # Renders SVG restricted to what usvg, resvg, and raster converters accept.
-    def render_svg_resvg_safe(
-      text,
-      site_config: nil,
-      diagram_id: nil,
-      deterministic_text_measurer: false,
-      random: Random
-    )
-      call(
-        "merman_render_svg_resvg_safe",
-        text,
-        svg_options(site_config, diagram_id, deterministic_text_measurer),
-        random
-      )
+      options =
+        operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
+      options["svg"] = {
+        "pipeline" => pipeline.to_s,
+        "diagram_id" => diagram_id,
+        "viewbox_padding" => viewbox_padding
+      }.compact
+      call("merman_render_svg", text, options, random)
     end
 
     # Renders terminal text, or nil when the text is not a recognized diagram.
+    # The keyword groups mirror merman's AsciiRequest: AsciiRenderOptions fields directly, the AsciiResourcePolicy as resources:, and the AsciiViewportPolicy as viewport:.
     def render_ascii(
       text,
-      charset: :unicode,
-      strict_parsing: nil,
+      resources: nil,
+      viewport: nil,
+      site_config: nil,
+      parse_options: nil,
       fixed_today: nil,
       fixed_local_offset_minutes: nil,
-      site_config: nil,
       random: Random,
       **ascii_options
     )
       unknown = ascii_options.keys - ASCII_OPTIONS
       raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
 
-      options = {
-        "site_config" => site_config,
-        "strict_parsing" => strict_parsing,
-        "fixed_today" => date_string(fixed_today),
-        "fixed_local_offset_minutes" => fixed_local_offset_minutes,
-        "ascii" => ascii_option_json(ascii_options.merge(charset: charset))
-      }
+      options =
+        operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
+      options["ascii"] = {
+        "options" => option_json(ascii_options, ASCII_ENUM_OPTIONS),
+        "resources" => policy_json(resources, RESOURCE_OPTIONS, "resources"),
+        "viewport" => policy_json(viewport, VIEWPORT_OPTIONS, "viewport")
+      }.compact
       call("merman_render_ascii", text, options, random)
     end
 
-    # Returns the diagram type, front-matter config, effective config, and title, or nil when the text is not a recognized diagram.
+    # Returns the diagram type, front-matter config, effective config, and title.
     def parse_metadata(text, site_config: nil, random: Random)
       json = call("merman_parse_metadata", text, { "site_config" => site_config }, random)
       json && JSON.parse(json)
     end
 
-    def svg_options(site_config, diagram_id, deterministic_text_measurer)
+    def operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
       {
         "site_config" => site_config,
-        "diagram_id" => diagram_id,
-        "deterministic_text_measurer" => deterministic_text_measurer
+        "parse_options" => parse_options&.to_s,
+        "fixed_today" => fixed_today&.strftime("%Y-%m-%d"),
+        "fixed_local_offset_minutes" => fixed_local_offset_minutes
       }
     end
-    private_class_method :svg_options
+    private_class_method :operation_options
 
-    def ascii_option_json(options)
-      options.to_h do |key, value|
-        [key.to_s, ASCII_ENUM_OPTIONS.include?(key) ? value.to_s : value]
-      end
-    end
-    private_class_method :ascii_option_json
+    def policy_json(options, known, group)
+      return nil if options.nil?
 
-    def date_string(date)
-      date&.strftime("%Y-%m-%d")
+      unknown = options.keys - known
+      raise ArgumentError, "unknown #{group} options: #{unknown.join(", ")}" unless unknown.empty?
+
+      option_json(options, SYMBOL_VALUED_OPTIONS)
     end
-    private_class_method :date_string
+    private_class_method :policy_json
+
+    def option_json(options, enum_keys)
+      options.to_h { |key, value| [key.to_s, enum_keys.include?(key) ? value.to_s : value] }
+    end
+    private_class_method :option_json
 
     def call(entry_point, text, options, random)
       run(restored_instance(random), entry_point, text, options)

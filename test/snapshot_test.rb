@@ -74,14 +74,7 @@ class SnapshotTest < Minitest::Test
   def render_with_seed(random)
     instance = Dewasm::Merman.send(:restored_instance, random)
     seed = instance.memory.buffer.get_string(Snapshot.seed_offset, Snapshot::SEED_SIZE)
-    svg =
-      Dewasm::Merman.send(
-        :run,
-        instance,
-        "merman_render_svg",
-        Diagrams::FLOWCHART,
-        Dewasm::Merman.send(:svg_options, nil, nil, false)
-      )
+    svg = Dewasm::Merman.send(:run, instance, "merman_render_svg", Diagrams::FLOWCHART, {})
     [svg, seed]
   end
 end

@@ -29,7 +29,7 @@ module Dewasm
         "C4Component" => ["c4", "C4Component\n  Person(a, \"A\")\n"],
         "C4Dynamic" => ["c4", "C4Dynamic\n  Person(a, \"A\")\n"],
         "C4Deployment" => ["c4", "C4Deployment\n  Person(a, \"A\")\n"],
-        "classDiagram" => ["class", "classDiagram\n  class Animal\n"],
+        "classDiagram" => ["classDiagram", "classDiagram\n  class Animal\n"],
         "cynefin-beta" => ["cynefin", "cynefin-beta\ncomplex\n\"Probe\"\n"],
         "erDiagram" => ["er", "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n"],
         "eventmodeling" => ["eventmodeling", "eventmodeling\ntf 01 cmd AddItem { productId: 7 }\n"],

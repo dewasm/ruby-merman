@@ -1,18 +1,25 @@
 //! The wasm ABI that the Ruby side of dewasm-merman calls.
 //!
 //! Every rendering entry point takes a UTF-8 diagram text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
+//! The options JSON mirrors merman's request model: operation-level fields at the top level, `svg` for `SvgRequest`, and `ascii` for `AsciiRequest` with its `options`, `resources`, and `viewport` parts.
 //! `merman_diagram_types` takes nothing and returns the diagram type table rows as JSON.
 //! The payload is read back with `merman_result_ptr` and `merman_result_len`.
 
 use std::cell::RefCell;
 
 use merman::ascii::{
-    AsciiCharset, AsciiColorMode, AsciiColorTheme, AsciiDirection, AsciiRenderOptions,
-    HeadlessAsciiRenderer,
+    AsciiCharset, AsciiColorMode, AsciiColorTheme, AsciiDirection, AsciiLayoutProfile,
+    AsciiRenderOptions, AsciiResourceLimitId, AsciiResourcePolicy, AsciiTrimPolicy,
+    AsciiViewportPolicy, OverflowPolicy, TerminalWidthProfile,
 };
+use merman::resources::ResourceProfile;
 use merman::runtime::RuntimePolicy;
-use merman::svg::HeadlessRenderer;
+use merman::svg::SvgPipeline;
 use merman::time::CivilDate;
+use merman::{
+    AsciiRequest, Engine, OperationControl, ParseOptions, RenderOutput, RenderRequest, Renderer,
+    SvgRequest,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -62,25 +69,43 @@ fn error(message: impl std::fmt::Display) -> u32 {
 #[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct Options {
-    diagram_id: Option<String>,
-    deterministic_text_measurer: bool,
     site_config: Option<Value>,
-    strict_parsing: Option<bool>,
+    parse_options: Option<String>,
     fixed_today: Option<String>,
     fixed_local_offset_minutes: Option<i32>,
-    ascii: AsciiOptions,
+    svg: SvgOptions,
+    ascii: AsciiRequestOptions,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct SvgOptions {
+    pipeline: Option<String>,
+    diagram_id: Option<String>,
+    viewbox_padding: Option<f64>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct AsciiRequestOptions {
+    options: AsciiOptions,
+    resources: ResourceOptions,
+    viewport: ViewportOptions,
 }
 
 #[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct AsciiOptions {
     charset: Option<String>,
+    terminal_width_profile: Option<String>,
+    layout_profile: Option<String>,
     default_direction: Option<String>,
     color_mode: Option<String>,
     color_theme: Option<String>,
     box_border_padding: Option<usize>,
     graph_padding_x: Option<usize>,
     graph_padding_y: Option<usize>,
+    flowchart_node_label_wrap_width: Option<usize>,
     sequence_participant_spacing: Option<usize>,
     sequence_message_spacing: Option<usize>,
     sequence_self_message_width: Option<usize>,
@@ -88,8 +113,27 @@ struct AsciiOptions {
     xychart_vertical_plot_height: Option<usize>,
     xychart_category_band_width: Option<usize>,
     xychart_horizontal_plot_width: Option<usize>,
-    max_grid_cells: Option<usize>,
     relation_summary_diagnostics: Option<bool>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct ResourceOptions {
+    profile: Option<String>,
+    max_grid_cells: Option<usize>,
+    max_layout_work_units: Option<usize>,
+    max_document_cells: Option<usize>,
+    max_output_bytes: Option<usize>,
+    max_grapheme_bytes: Option<usize>,
+    max_nesting_depth: Option<usize>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct ViewportOptions {
+    max_width: Option<usize>,
+    overflow: Option<String>,
+    trim: Option<String>,
 }
 
 struct Input<'a> {
@@ -124,7 +168,7 @@ fn read_input<'a>(
 
 /// Returns `None` when neither fixed-time option is set.
 ///
-/// merman 0.8.0-alpha.5 moved the fixed-time controls off the renderer onto the runtime policy, whose default is the deterministic policy the renderers already use, so the returned policy differs from the default only in what the caller asked for.
+/// The default runtime policy is the deterministic policy the engine already uses, so the returned policy differs from the default only in what the caller asked for.
 fn runtime_policy(options: &Options) -> Result<Option<RuntimePolicy>, String> {
     if options.fixed_today.is_none() && options.fixed_local_offset_minutes.is_none() {
         return Ok(None);
@@ -144,11 +188,44 @@ fn runtime_policy(options: &Options) -> Result<Option<RuntimePolicy>, String> {
     Ok(Some(policy))
 }
 
+fn pipeline(name: &str) -> Result<SvgPipeline, String> {
+    match name {
+        "parity" => Ok(SvgPipeline::parity()),
+        "readable" => Ok(SvgPipeline::readable()),
+        "resvg_safe" => Ok(SvgPipeline::resvg_safe()),
+        other => Err(format!("unknown pipeline {other:?}")),
+    }
+}
+
+fn parse_options(name: &str) -> Result<ParseOptions, String> {
+    match name {
+        "strict" => Ok(ParseOptions::strict()),
+        "lenient" => Ok(ParseOptions::lenient()),
+        other => Err(format!("unknown parse_options {other:?}")),
+    }
+}
+
 fn charset(name: &str) -> Result<AsciiCharset, String> {
     match name {
         "unicode" => Ok(AsciiCharset::Unicode),
         "ascii" => Ok(AsciiCharset::Ascii),
         other => Err(format!("unknown charset {other:?}")),
+    }
+}
+
+fn terminal_width_profile(name: &str) -> Result<TerminalWidthProfile, String> {
+    match name {
+        "unicode" => Ok(TerminalWidthProfile::Unicode),
+        "cjk" => Ok(TerminalWidthProfile::Cjk),
+        other => Err(format!("unknown terminal_width_profile {other:?}")),
+    }
+}
+
+fn layout_profile(name: &str) -> Result<AsciiLayoutProfile, String> {
+    match name {
+        "canonical" => Ok(AsciiLayoutProfile::Canonical),
+        "compact" => Ok(AsciiLayoutProfile::Compact),
+        other => Err(format!("unknown layout_profile {other:?}")),
     }
 }
 
@@ -179,10 +256,43 @@ fn color_theme(name: &str) -> Result<AsciiColorTheme, String> {
     }
 }
 
+fn resource_profile(name: &str) -> Result<ResourceProfile, String> {
+    match name {
+        "interactive" => Ok(ResourceProfile::Interactive),
+        "constrained" => Ok(ResourceProfile::Constrained),
+        "trusted_native" => Ok(ResourceProfile::TrustedNative),
+        "unbounded_for_trusted_input" => Ok(ResourceProfile::UnboundedForTrustedInput),
+        other => Err(format!("unknown resources profile {other:?}")),
+    }
+}
+
+fn overflow(name: &str) -> Result<OverflowPolicy, String> {
+    match name {
+        "allow" => Ok(OverflowPolicy::Allow),
+        "fallback" => Ok(OverflowPolicy::Fallback),
+        "error" => Ok(OverflowPolicy::Error),
+        other => Err(format!("unknown viewport overflow {other:?}")),
+    }
+}
+
+fn trim(name: &str) -> Result<AsciiTrimPolicy, String> {
+    match name {
+        "preserve" => Ok(AsciiTrimPolicy::Preserve),
+        "trim_trailing_spaces" => Ok(AsciiTrimPolicy::TrimTrailingSpaces),
+        other => Err(format!("unknown viewport trim {other:?}")),
+    }
+}
+
 fn ascii_options(options: &AsciiOptions) -> Result<AsciiRenderOptions, String> {
     let mut ascii = AsciiRenderOptions::default();
     if let Some(value) = &options.charset {
         ascii.charset = charset(value)?;
+    }
+    if let Some(value) = &options.terminal_width_profile {
+        ascii.terminal_width_profile = terminal_width_profile(value)?;
+    }
+    if let Some(value) = &options.layout_profile {
+        ascii.layout_profile = layout_profile(value)?;
     }
     if let Some(value) = &options.default_direction {
         ascii.default_direction = direction(value)?;
@@ -201,6 +311,9 @@ fn ascii_options(options: &AsciiOptions) -> Result<AsciiRenderOptions, String> {
     }
     if let Some(value) = options.graph_padding_y {
         ascii.graph_padding_y = value;
+    }
+    if let Some(value) = options.flowchart_node_label_wrap_width {
+        ascii.flowchart_node_label_wrap_width = value;
     }
     if let Some(value) = options.sequence_participant_spacing {
         ascii.sequence_participant_spacing = value;
@@ -223,77 +336,103 @@ fn ascii_options(options: &AsciiOptions) -> Result<AsciiRenderOptions, String> {
     if let Some(value) = options.xychart_horizontal_plot_width {
         ascii.xychart_horizontal_plot_width = value;
     }
-    if let Some(value) = options.max_grid_cells {
-        ascii.max_grid_cells = value;
-    }
     if let Some(value) = options.relation_summary_diagnostics {
         ascii.relation_summary_diagnostics = value;
     }
     Ok(ascii)
 }
 
-fn svg_renderer(options: &Options) -> Result<HeadlessRenderer, String> {
-    let mut renderer = HeadlessRenderer::new();
-    if let Some(site_config) = &options.site_config {
-        renderer = renderer.with_site_config(merman_config(site_config.clone()));
+fn resource_policy(options: &ResourceOptions) -> Result<AsciiResourcePolicy, String> {
+    let mut policy = AsciiResourcePolicy::default();
+    if let Some(name) = &options.profile {
+        policy = policy.with_profile(resource_profile(name)?);
     }
-    if let Some(diagram_id) = &options.diagram_id {
-        renderer = renderer.with_diagram_id(diagram_id);
+    let limits = [
+        (AsciiResourceLimitId::MaxGridCells, options.max_grid_cells),
+        (
+            AsciiResourceLimitId::MaxLayoutWorkUnits,
+            options.max_layout_work_units,
+        ),
+        (
+            AsciiResourceLimitId::MaxDocumentCells,
+            options.max_document_cells,
+        ),
+        (
+            AsciiResourceLimitId::MaxOutputBytes,
+            options.max_output_bytes,
+        ),
+        (
+            AsciiResourceLimitId::MaxGraphemeBytes,
+            options.max_grapheme_bytes,
+        ),
+        (
+            AsciiResourceLimitId::MaxNestingDepth,
+            options.max_nesting_depth,
+        ),
+    ];
+    for (id, value) in limits {
+        if let Some(value) = value {
+            policy = policy
+                .with_limit(id, value)
+                .map_err(|e| format!("invalid resources {} {value}: {e}", id.as_str()))?;
+        }
     }
-    if options.deterministic_text_measurer {
-        renderer = renderer.with_deterministic_text_measurer();
-    }
-    renderer = match options.strict_parsing {
-        Some(true) => renderer.with_strict_parsing(),
-        Some(false) => renderer.with_lenient_parsing(),
-        None => renderer,
-    };
-    if let Some(policy) = runtime_policy(options)? {
-        renderer = renderer.with_runtime_policy(policy);
-    }
-    Ok(renderer)
+    Ok(policy)
 }
 
-fn ascii_renderer(options: &Options) -> Result<HeadlessAsciiRenderer, String> {
-    let mut renderer = HeadlessAsciiRenderer::new();
+fn viewport_policy(options: &ViewportOptions) -> Result<AsciiViewportPolicy, String> {
+    let mut viewport = AsciiViewportPolicy::default();
+    viewport.max_width = options.max_width;
+    if let Some(name) = &options.overflow {
+        viewport.overflow = overflow(name)?;
+    }
+    if let Some(name) = &options.trim {
+        viewport.trim = trim(name)?;
+    }
+    Ok(viewport)
+}
+
+fn ascii_request(options: &AsciiRequestOptions) -> Result<AsciiRequest, String> {
+    Ok(AsciiRequest {
+        options: ascii_options(&options.options)?,
+        resources: resource_policy(&options.resources)?,
+        viewport: viewport_policy(&options.viewport)?,
+    })
+}
+
+fn engine(options: &Options) -> Result<Engine, String> {
+    let mut engine = Engine::new();
     if let Some(site_config) = &options.site_config {
-        renderer = renderer.with_site_config(merman_config(site_config.clone()));
+        engine = engine.with_site_config(merman_config(site_config.clone()));
     }
-    renderer = match options.strict_parsing {
-        Some(true) => renderer.with_strict_parsing(),
-        Some(false) => renderer.with_lenient_parsing(),
-        None => renderer,
-    };
     if let Some(policy) = runtime_policy(options)? {
-        renderer = renderer.with_runtime_policy(policy);
+        engine = engine.with_runtime_policy(policy);
     }
-    Ok(renderer.with_ascii_options(ascii_options(&options.ascii)?))
+    Ok(engine)
+}
+
+fn renderer(options: &Options) -> Result<Renderer, String> {
+    let mut renderer = Renderer::new().with_engine(engine(options)?);
+    if let Some(name) = &options.parse_options {
+        renderer = renderer.with_parse_options(parse_options(name)?);
+    }
+    Ok(renderer)
 }
 
 fn merman_config(value: Value) -> merman::MermaidConfig {
     merman::MermaidConfig::from_value(value)
 }
 
-fn run_svg(
-    text_ptr: *const u8,
-    text_len: u32,
-    options_ptr: *const u8,
-    options_len: u32,
-    render: fn(&HeadlessRenderer, &str) -> merman::svg::Result<Option<String>>,
-) -> u32 {
-    let input = match read_input(text_ptr, text_len, options_ptr, options_len) {
-        Ok(input) => input,
-        Err(message) => return error(message),
-    };
-    let renderer = match svg_renderer(&input.options) {
-        Ok(renderer) => renderer,
-        Err(message) => return error(message),
-    };
-    match render(&renderer, input.text) {
-        Ok(Some(svg)) => ok(svg),
-        Ok(None) => none(),
-        Err(e) => error(e),
+fn svg_request(options: &Options) -> Result<SvgRequest, String> {
+    let mut request = SvgRequest::default();
+    request.options.diagram_id = options.svg.diagram_id.clone();
+    if let Some(value) = options.svg.viewbox_padding {
+        request.options.viewbox_padding = value;
     }
+    request.pipeline = Some(pipeline(
+        options.svg.pipeline.as_deref().unwrap_or("parity"),
+    )?);
+    Ok(request)
 }
 
 #[unsafe(no_mangle)]
@@ -303,55 +442,28 @@ pub extern "C" fn merman_render_svg(
     options_ptr: *const u8,
     options_len: u32,
 ) -> u32 {
-    run_svg(
-        text_ptr,
-        text_len,
-        options_ptr,
-        options_len,
-        HeadlessRenderer::render_svg_sync,
-    )
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn merman_render_svg_readable(
-    text_ptr: *const u8,
-    text_len: u32,
-    options_ptr: *const u8,
-    options_len: u32,
-) -> u32 {
-    run_svg(
-        text_ptr,
-        text_len,
-        options_ptr,
-        options_len,
-        HeadlessRenderer::render_svg_readable_sync,
-    )
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn merman_render_svg_resvg_safe(
-    text_ptr: *const u8,
-    text_len: u32,
-    options_ptr: *const u8,
-    options_len: u32,
-) -> u32 {
-    run_svg(
-        text_ptr,
-        text_len,
-        options_ptr,
-        options_len,
-        render_resvg_compatible_svg,
-    )
-}
-
-/// merman 0.8.0-alpha.5 returns the resvg-compatible SVG in a wrapper type instead of a plain string; the reference it retains only serves merman's own raster exporters.
-fn render_resvg_compatible_svg(
-    renderer: &HeadlessRenderer,
-    text: &str,
-) -> merman::svg::Result<Option<String>> {
-    Ok(renderer
-        .render_resvg_compatible_svg_sync(text)?
-        .map(|svg| svg.into_string()))
+    let input = match read_input(text_ptr, text_len, options_ptr, options_len) {
+        Ok(input) => input,
+        Err(message) => return error(message),
+    };
+    let renderer = match renderer(&input.options) {
+        Ok(renderer) => renderer,
+        Err(message) => return error(message),
+    };
+    let request = match svg_request(&input.options) {
+        Ok(request) => request,
+        Err(message) => return error(message),
+    };
+    match renderer.render(RenderRequest::svg(
+        input.text,
+        OperationControl::new(),
+        request,
+    )) {
+        Ok(RenderOutput::Svg(Some(output))) => ok(output.into_parts().0),
+        // An SVG request only produces `RenderOutput::Svg`; `None` is "not a recognized diagram".
+        Ok(_) => none(),
+        Err(e) => error(e),
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -365,13 +477,22 @@ pub extern "C" fn merman_render_ascii(
         Ok(input) => input,
         Err(message) => return error(message),
     };
-    let renderer = match ascii_renderer(&input.options) {
+    let renderer = match renderer(&input.options) {
         Ok(renderer) => renderer,
         Err(message) => return error(message),
     };
-    match renderer.render_ascii_sync(input.text) {
-        Ok(Some(text)) => ok(text),
-        Ok(None) => none(),
+    let request = match ascii_request(&input.options.ascii) {
+        Ok(request) => request,
+        Err(message) => return error(message),
+    };
+    match renderer.render(RenderRequest::ascii(
+        input.text,
+        OperationControl::new(),
+        request,
+    )) {
+        Ok(RenderOutput::Ascii(Some(output))) => ok(output.into_text()),
+        // An ASCII request only produces `RenderOutput::Ascii`; `None` is "not a recognized diagram".
+        Ok(_) => none(),
         Err(e) => error(e),
     }
 }
@@ -448,12 +569,12 @@ pub extern "C" fn merman_parse_metadata(
         Ok(input) => input,
         Err(message) => return error(message),
     };
-    let renderer = match svg_renderer(&input.options) {
-        Ok(renderer) => renderer,
+    let engine = match engine(&input.options) {
+        Ok(engine) => engine,
         Err(message) => return error(message),
     };
-    // merman 0.8.0-alpha.5 makes undetectable text an error here, so this entry point has no "no diagram" status to report.
-    match renderer.parse_metadata_sync(input.text) {
+    // merman makes undetectable text an error here, so this entry point has no "no diagram" status to report.
+    match engine.parse_metadata_sync(input.text) {
         Ok(metadata) => {
             let payload = json!({
                 "diagram_type": metadata.diagram_type,
