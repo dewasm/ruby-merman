@@ -429,9 +429,11 @@ fn svg_request(options: &Options) -> Result<SvgRequest, String> {
     if let Some(value) = options.svg.viewbox_padding {
         request.options.viewbox_padding = value;
     }
-    request.pipeline = Some(pipeline(
-        options.svg.pipeline.as_deref().unwrap_or("parity"),
-    )?);
+    // An absent pipeline stays merman's `None` default: even the empty parity preset costs two
+    // forbidden-character scans and a well-formedness validation over the whole SVG per render.
+    if let Some(name) = &options.svg.pipeline {
+        request.pipeline = Some(pipeline(name)?);
+    }
     Ok(request)
 }
 

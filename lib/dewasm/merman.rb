@@ -72,10 +72,10 @@ module Dewasm
     module_function
 
     # Renders SVG, or nil when the text is not a recognized diagram.
-    # The pipeline is merman's SVG postprocess preset: :parity, :readable, or :resvg_safe.
+    # The pipeline is merman's SVG postprocess preset (:parity, :readable, or :resvg_safe); nil keeps merman's default of applying none.
     def render_svg(
       text,
-      pipeline: :parity,
+      pipeline: nil,
       diagram_id: nil,
       viewbox_padding: nil,
       site_config: nil,
@@ -87,7 +87,7 @@ module Dewasm
       options =
         operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
       options["svg"] = {
-        "pipeline" => pipeline.to_s,
+        "pipeline" => pipeline&.to_s,
         "diagram_id" => diagram_id,
         "viewbox_padding" => viewbox_padding
       }.compact

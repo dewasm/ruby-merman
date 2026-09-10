@@ -191,7 +191,7 @@ Options on `render_svg`, mirroring `SvgRequest`:
 
 | Option | Default | merman |
 | --- | --- | --- |
-| `pipeline:` | `:parity` | `SvgPipeline`: `:parity`, `:readable` (`<text>` fallbacks for `<foreignObject>` labels), or `:resvg_safe` (restricted to what usvg, resvg, and raster converters accept) |
+| `pipeline:` | `nil` | `SvgRequest#pipeline`, an `SvgPipeline` preset: `:parity` (validated Mermaid-parity output), `:readable` (`<text>` fallbacks for `<foreignObject>` labels), or `:resvg_safe` (restricted to what usvg, resvg, and raster converters accept); `nil` keeps merman's default of applying none |
 | `diagram_id:` | `nil` | `SvgRenderOptions#diagram_id` |
 | `viewbox_padding:` | merman's default | `SvgRenderOptions#viewbox_padding` |
 
@@ -256,14 +256,14 @@ Measured on macOS 26.6.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Generated `wasm_module.rb` | 49.0 MB |
 | Shipped `snapshot.bin.gz` | 1.3 MB |
 | Packaged `.gem` | 8.5 MB |
-| `require "dewasm/merman"` | 3.8 s |
+| `require "dewasm/merman"` | 3.9 s |
 | Resident memory after `require` | 1148.6 MB |
 | One module instantiation | 17 ms |
-| `render_svg`, flowchart | 141 ms |
-| `render_svg`, sequence diagram | 205 ms |
-| `render_svg`, railroad diagram | 81 ms |
+| `render_svg`, flowchart | 55 ms |
+| `render_svg`, sequence diagram | 55 ms |
+| `render_svg`, railroad diagram | 51 ms |
 | `render_ascii`, flowchart | 114 ms |
-| `parse_metadata` | 80 ms |
+| `parse_metadata` | 85 ms |
 <!-- measurements:end -->
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
