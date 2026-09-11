@@ -85,22 +85,18 @@ module Dewasm
       # An instance whose initialization has run, equivalent to what restoring the snapshot produces.
       def instance
         instance = WasmModule.new({ "wasi_snapshot_preview1" => Wasi.new(SEED) })
-        Merman.send(:run, instance, "merman_render_svg", FLOWCHART, {})
+        Merman.send(:run, instance, "merman_render", FLOWCHART, { "format" => { "svg" => {} } })
         instance
       end
 
-      # The public functions with their default options, each on its own freshly initialized instance.
+      # The public render formats with their default options, each on its own freshly initialized instance.
       # They reach into the private call path on purpose: taking the same path with a different instance is what makes the comparison against a restored render meaningful.
       def render_svg(text)
-        call("merman_render_svg", text, Merman.send(:svg_options, nil, nil, false))
+        call("merman_render", text, { "format" => { "svg" => {} } })
       end
 
-      def render_ascii(text)
-        call(
-          "merman_render_ascii",
-          text,
-          { "ascii" => Merman.send(:ascii_option_json, charset: :unicode) }
-        )
+      def render_unicode(text)
+        call("merman_render", text, { "format" => { "unicode" => {} } })
       end
 
       def parse_metadata(text)

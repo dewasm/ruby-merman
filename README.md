@@ -8,8 +8,8 @@
 The renderer is [merman](https://github.com/Latias94/merman), a headless Rust implementation of Mermaid, compiled to `wasm32-wasip1` and converted to Ruby source by [dewasm](https://github.com/dewasm/dewasm).
 There is *no browser*, *no native extension*, and *no wasm runtime* involved: the gem is Ruby code that a stock `ruby` executes.
 
-The gem is built from merman `0.8.0-alpha.5` on crates.io.
-Two cargo features are enabled: `complete-svg` and `ascii`.
+The gem is built from merman `0.8.0-alpha.6` on crates.io.
+Two cargo features are enabled: `complete-svg-elk` and `ascii`.
 
 ## Install
 
@@ -30,7 +30,7 @@ Ruby 3.4 or newer is required, because the converted module stores WebAssembly l
 ```ruby
 require "dewasm/merman"
 
-svg = Dewasm::Merman.render_svg(<<~MERMAID)
+svg = Dewasm::Merman.render(<<~MERMAID)
   flowchart LR
     A[Commit] --> B{CI passes?}
     B -->|Yes| C[Merge]
@@ -46,7 +46,7 @@ File.write("flowchart.svg", svg)
 Railroad grammar diagrams render the same way:
 
 ```ruby
-svg = Dewasm::Merman.render_svg(<<~MERMAID)
+svg = Dewasm::Merman.render(<<~MERMAID)
   railroad-ebnf-beta
   expr = term , { "+" , term } ;
   term = factor , { "*" , factor } ;
@@ -59,7 +59,7 @@ MERMAID
 Terminal text instead of SVG:
 
 ```ruby
-puts Dewasm::Merman.render_ascii(<<~MERMAID)
+puts Dewasm::Merman.render(<<~MERMAID, format: :unicode)
   flowchart LR
     A[Start] --> B[Done]
 MERMAID
@@ -74,7 +74,7 @@ MERMAID
 ```
 
 ```ruby
-puts Dewasm::Merman.render_ascii(<<~MERMAID, charset: :ascii)
+puts Dewasm::Merman.render(<<~MERMAID, format: :ascii)
   flowchart TD
     A[Start] --> B[Done]
 MERMAID
@@ -101,7 +101,7 @@ MERMAID
 ## Diagram types
 
 The enabled features are merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
-`render_ascii` covers the subset merman renders as terminal text; asking it for a type without a check in the ASCII column raises `Dewasm::Merman::Error`.
+The `:ascii` and `:unicode` formats cover the subset merman renders as terminal text; asking them for a type without a check in the ASCII column raises `Dewasm::Merman::Error`.
 Each row names the keyword the diagram text opens with.
 
 <!-- diagram-types:begin -->
@@ -160,7 +160,7 @@ metadata["effective_config"]["theme"]  # => "default"
 Mermaid site configuration is a Hash, serialized to JSON and applied as merman's site config:
 
 ```ruby
-svg = Dewasm::Merman.render_svg(<<~MERMAID, site_config: { "theme" => "dark" })
+svg = Dewasm::Merman.render(<<~MERMAID, site_config: { "theme" => "dark" })
   flowchart TD
     A --> B
 MERMAID
@@ -168,50 +168,54 @@ MERMAID
 
 ## API
 
-A single call renders the given diagram text to SVG or to terminal text.
-The table maps each function to the merman API it wraps.
+`render` turns the given diagram text into one output format, named the way merman-cli's `render --format` names it; `parse_metadata` reads diagram metadata without rendering.
 
 | Ruby | merman |
 | --- | --- |
-| `Dewasm::Merman.render_svg(text, **options)` | `HeadlessRenderer::render_svg_sync` |
-| `Dewasm::Merman.render_svg_readable(text, **options)` | `HeadlessRenderer::render_svg_readable_sync` |
-| `Dewasm::Merman.render_svg_resvg_safe(text, **options)` | `HeadlessRenderer::render_resvg_compatible_svg_sync` |
-| `Dewasm::Merman.render_ascii(text, **options)` | `HeadlessAsciiRenderer::render_ascii_sync` |
-| `Dewasm::Merman.parse_metadata(text, **options)` | `HeadlessRenderer::parse_metadata_sync` |
+| `Dewasm::Merman.render(text, format:, **options)` | `Renderer::render` with the format's `RenderRequest` |
+| `Dewasm::Merman.parse_metadata(text, **options)` | `Engine::parse_metadata_sync` |
 
-Options on the three SVG functions (`render_svg`, `render_svg_readable`, and `render_svg_resvg_safe`):
+The keywords follow merman-cli's `render` command: an option that has a CLI flag carries the flag's name, and an option the CLI does not name carries its merman field name.
 
-| Option | Default | merman |
+`format:` takes the merman-cli `--format` values compiled into this gem: `:svg` (the default), and `:ascii` or `:unicode` for terminal text starting from that charset's `AsciiRenderOptions` constructor.
+
+Options on `render` for every format:
+
+| Option | Default | merman-cli / merman |
 | --- | --- | --- |
-| `site_config:` | `nil` | `with_site_config`, a Hash carried as JSON |
-| `diagram_id:` | `nil` | `with_diagram_id` |
-| `deterministic_text_measurer:` | `false` | `with_deterministic_text_measurer` |
+| `site_config:` | `nil` | `Engine#with_site_config`, a Hash carried as JSON |
+| `suppress_errors:` | `nil` | `--suppress-errors`: `true` emits an error diagram instead of failing on parse errors; `nil` keeps merman's own default |
+| `resource_profile:` | `nil` | `--resource-profile`: `:interactive`, `:constrained`, `:trusted_native`, or `:unbounded_for_trusted_input`, resolving every resource policy of the operation from one profile |
+| `resource_limits:` | `nil` | `--resource-limit`: a Hash from merman's stable limit ids (as symbols, `max_grid_cells:`, `max_source_bytes:`, ...) to values, applied over the profile |
+| `fixed_today:` | `nil` | `--fixed-today`, a `Date` |
+| `fixed_local_offset_minutes:` | `nil` | `--fixed-local-offset-minutes` |
 | `random:` | `Random` | the source of the render's hash seed |
+
+Options on `render(format: :svg)`:
+
+| Option | Default | merman-cli / merman |
+| --- | --- | --- |
+| `pipeline:` | `nil` | `--svg-pipeline`, an `SvgPipeline` preset: `:parity` (validated Mermaid-parity output), `:readable` (`<text>` fallbacks for `<foreignObject>` labels), or `:resvg_safe` (restricted to what usvg, resvg, and raster converters accept); `nil` keeps merman's default of applying none |
+| `svg_id:` | `nil` | `--svg-id`, the root SVG id and internal marker prefix |
+| `viewbox_padding:` | merman's default | `SvgRenderOptions#viewbox_padding` |
+
+Options on `render(format: :ascii)` and `render(format: :unicode)`, each with merman's default:
+
+- `charset:` (`:unicode` or `:ascii`), the `--ascii-charset` override of the format's charset,
+- `width_profile:` (`:unicode` or `:cjk`), the `--ascii-width-profile` display-width rule,
+- `layout_profile:` (`:canonical` or `:compact`), the `--ascii-layout-profile` density,
+- `direction:` (`:left_right` or `:top_down`), the `--ascii-direction` default,
+- `color:` (`:plain`, `:ansi16`, `:ansi256`, `:true_color`, `:html`), the `--ascii-color` mode,
+- `color_theme:` (`:light` or `:dark`),
+- `flowchart_node_label_wrap_width:`, the `--ascii-flowchart-node-label-wrap-width` wrap point,
+- `sequence_mirror_actors:`, the `--sequence-mirror-actors` toggle,
+- `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`, the `--xychart-*` sizes,
+- `max_width:`, `overflow:` (`:allow`, `:fallback`, or `:error`), and `trim_trailing_spaces:`, the `--ascii-max-width`, `--ascii-overflow`, and `--ascii-trim-trailing-spaces` viewport controls,
+- `box_border_padding:`, `graph_padding_x:`, `graph_padding_y:`,
+- `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`,
+- `relation_summary_diagnostics:`.
 
 `parse_metadata` takes `site_config:` and `random:`.
-
-Options on `render_ascii`:
-
-| Option | Default | merman |
-| --- | --- | --- |
-| `charset:` | `:unicode` | `AsciiRenderOptions#charset`, `:unicode` or `:ascii` |
-| `strict_parsing:` | `nil` | `nil` keeps merman's own parse default; `with_strict_parsing` when true, `with_lenient_parsing` when false |
-| `fixed_today:` | `nil` | `RuntimePolicy#with_fixed_today`, a `Date` |
-| `fixed_local_offset_minutes:` | `nil` | `RuntimePolicy#try_with_fixed_local_offset_minutes` |
-| `site_config:` | `nil` | `with_site_config` |
-| `random:` | `Random` | the source of the render's hash seed |
-
-`render_ascii` also takes the remaining `AsciiRenderOptions` fields as keywords, each with merman's default:
-
-- `default_direction:` (`:left_right` or `:top_down`),
-- `color_mode:` (`:plain`, `:ansi16`, `:ansi256`, `:true_color`, `:html`),
-- `color_theme:` (`:light` or `:dark`),
-- `box_border_padding:`,
-- `graph_padding_x:`, `graph_padding_y:`,
-- `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`, `sequence_mirror_actors:`,
-- `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`,
-- `max_grid_cells:`,
-- `relation_summary_diagnostics:`.
 
 Errors from merman are raised as `Dewasm::Merman::Error` carrying merman's message, for example `Diagram parse error (flowchart-v2): Unexpected character at 15` or `` ASCII rendering does not support diagram type `pie` ``.
 
@@ -230,22 +234,22 @@ The gem avoids that cost by computing the initialized memory ahead of time and s
 ## Size, memory, and speed
 
 <!-- measurements:begin -->
-Measured on macOS 26.5.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
+Measured on macOS 26.6.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowchart.
 
 | Quantity | Value |
 | --- | --- |
-| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.8 MB |
-| Generated `wasm_module.rb` | 45.0 MB |
-| Shipped `snapshot.bin.gz` | 2.7 MB |
-| Packaged `.gem` | 9.5 MB |
-| `require "dewasm/merman"` | 3.2 s |
-| Resident memory after `require` | 960.3 MB |
-| One module instantiation | 31 ms |
-| `render_svg`, flowchart | 60 ms |
-| `render_svg`, sequence diagram | 76 ms |
-| `render_svg`, railroad diagram | 65 ms |
-| `render_ascii`, flowchart | 44 ms |
-| `parse_metadata` | 96 ms |
+| `wasm/merman.wasm` after `wasm-opt -Oz` | 11.3 MB |
+| Generated `wasm_module.rb` | 49.0 MB |
+| Shipped `snapshot.bin.gz` | 1.3 MB |
+| Packaged `.gem` | 8.5 MB |
+| `require "dewasm/merman"` | 3.9 s |
+| Resident memory after `require` | 1149.1 MB |
+| One module instantiation | 17 ms |
+| `render` to SVG, flowchart | 58 ms |
+| `render` to SVG, sequence diagram | 57 ms |
+| `render` to SVG, railroad diagram | 51 ms |
+| `render` to terminal text, flowchart | 115 ms |
+| `parse_metadata` | 81 ms |
 <!-- measurements:end -->
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.
@@ -315,7 +319,7 @@ $ rake example_svgs
 ```
 
 Rewrites the SVG files under `examples/` from the README's example diagrams.
-They are rendered with `render_svg_resvg_safe`, whose output displays as an image without `foreignObject` support.
+They are rendered with the `:resvg_safe` pipeline, whose output displays as an image without `foreignObject` support.
 The test suite fails when a committed SVG no longer matches what this task writes.
 It needs `rake generate`.
 
@@ -345,6 +349,6 @@ This repository's own code is MIT: see `LICENSE`.
 
 merman is dual licensed under MIT or Apache-2.0, and this gem takes it under MIT: see `LICENSE-MERMAN`.
 The gem also ships merman's `THIRD_PARTY_NOTICES-MERMAN.md`, upstream's inventory of the projects merman derives from (Mermaid itself among them).
-That inventory covers every upstream artifact; this gem contains only the `complete-svg` and `ascii` feature closure.
+That inventory covers every upstream artifact; this gem contains only the `complete-svg-elk` and `ascii` feature closure.
 
 merman is not affiliated with or endorsed by Mermaid.

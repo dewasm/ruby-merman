@@ -19,45 +19,57 @@ Components: `beautiful-mermaid`, `mermaid`, `mermaid-ascii`, `mermaid-rs-rendere
 
 ### `cli-default`
 
-The default CLI feature closure, including ELK layout and RaTeX math/font support.
+The default CLI feature closure without ELK, retaining the explicit RaTeX math/font support.
 
-Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+
+### `cli-release`
+
+The published complete CLI release closure, including explicit ELK and RaTeX math/font support.
+
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ### `elk-render`
 
 Render artifacts that include the source-translated Eclipse ELK layered implementation.
 
-Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ### `playground-reference`
 
 Third-party projects loaded by or used as behavioral evidence for the deployed Playground.
 
-Components: `d3-shape`, `dompurify`, `elkjs`, `mermaid`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `d3-shape`, `dompurify`, `elkjs`, `mermaid`, `non-layered-tidy-tree-layout`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ### `ratex-render`
 
 Render artifacts that link RaTeX and embed the KaTeX TrueType font payload.
 
-Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ### `rust-render-base`
 
 Headless parser and renderer artifacts without optional ELK, RaTeX, ASCII, or Typst transport features.
 
-Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `fmin`, `graphlib`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `fmin`, `graphlib`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ### `source-archive`
 
 Conservative repository source archive inventory covering every translated, copied, linked, embedded, fixture, and behavior-reference component recorded here.
 
-Components: `beautiful-mermaid`, `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `mermaid-ascii`, `mermaid-rs-renderer`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `wasm-minimal-protocol`, `zenuml-core`.
+Components: `beautiful-mermaid`, `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `mermaid-ascii`, `mermaid-rs-renderer`, `monaqa-tree-sitter-mermaid`, `non-layered-tidy-tree-layout`, `pappasam-tree-sitter-mermaid`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `singularity-tree-sitter-mermaid`, `tree-sitter-generator`, `tree-sitter-mermaid-mermaid-baseline`, `tree-sitter-mermaid-zenuml-baseline`, `venn-js`, `wasm-minimal-protocol`, `zenuml-core`.
+
+### `tree-sitter-mermaid-source`
+
+The independently versioned Tree-sitter Mermaid language source package and its pinned syntax and compatibility references.
+
+Components: `monaqa-tree-sitter-mermaid`, `pappasam-tree-sitter-mermaid`, `singularity-tree-sitter-mermaid`, `tree-sitter-generator`, `tree-sitter-mermaid-mermaid-baseline`, `tree-sitter-mermaid-zenuml-baseline`.
 
 ### `typst-publish`
 
-The published Typst WASM profile, including ELK and wasm-minimal-protocol but excluding RaTeX.
+The Typst WASM publish profile, including ELK and wasm-minimal-protocol but excluding RaTeX.
 
-Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `wasm-minimal-protocol`, `zenuml-core`.
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `wasm-minimal-protocol`, `zenuml-core`.
 
 ### `web-analysis`
 
@@ -81,13 +93,13 @@ Components: `dompurify`, `mermaid`, `sanitize-url`, `zenuml-core`.
 
 The published complete browser SVG renderer, including Cytoscape, ELK, RaTeX, and the embedded KaTeX font payload.
 
-Components: `beautiful-mermaid`, `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `mermaid-ascii`, `mermaid-rs-renderer`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `beautiful-mermaid`, `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `mermaid-ascii`, `mermaid-rs-renderer`, `non-layered-tidy-tree-layout`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ### `web-render`
 
 Published complete browser SVG renderer with Cytoscape, ELK, RaTeX, and the embedded KaTeX font payload, but without analysis, ASCII, or editor APIs.
 
-Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
+Components: `cose-base-v1`, `cose-base-v2`, `cytoscape`, `cytoscape-cose-bilkent`, `cytoscape-fcose`, `d3-shape`, `dagre`, `dompurify`, `eclipse-elk`, `elkjs`, `fmin`, `graphlib`, `katex-fonts`, `layout-base-v1`, `layout-base-v2`, `mermaid`, `non-layered-tidy-tree-layout`, `ratex`, `rough-rs`, `roughjs`, `sanitize-url`, `venn-js`, `zenuml-core`.
 
 ## Components
 
@@ -118,7 +130,7 @@ Manatee contains Rust translations and adaptations of CoSE layout behavior from 
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/cose-base-v1/LICENSE`](THIRD_PARTY_LICENSES/cose-base-v1/LICENSE) (license, SHA-256 `5fb3cf4a14c3c5af6e473a192df8bca10c77754e3a0c6492c79fb92a76a5478a`)
@@ -134,7 +146,7 @@ Manatee contains Rust translations and adaptations of the newer CoSE base behavi
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/cose-base-v2/LICENSE`](THIRD_PARTY_LICENSES/cose-base-v2/LICENSE) (license, SHA-256 `5fb3cf4a14c3c5af6e473a192df8bca10c77754e3a0c6492c79fb92a76a5478a`)
@@ -150,7 +162,7 @@ Architecture layout and styling use source-backed Cytoscape behavior and default
 - Source path: `.`
 - Relationship: `behavior-reference`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`, `crates/merman-render/src/architecture.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/cytoscape/LICENSE`](THIRD_PARTY_LICENSES/cytoscape/LICENSE) (license, SHA-256 `eb319c6e6f233607f71e8e2f450391751883cfc0eeb3ca7ef574c13d1d9c2203`)
@@ -166,7 +178,7 @@ Manatee includes source-backed CoSE-Bilkent layout behavior translated to Rust.
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/cytoscape-cose-bilkent/LICENSE`](THIRD_PARTY_LICENSES/cytoscape-cose-bilkent/LICENSE) (license, SHA-256 `440fc58a56a12814e417d2b341da89b050da052dc75bdb235607d37ec5fe74ef`)
@@ -182,7 +194,7 @@ The headless Architecture layout is a modified Rust implementation of FCoSE beha
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`, `crates/merman-render/src/architecture.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/cytoscape-fcose/LICENSE`](THIRD_PARTY_LICENSES/cytoscape-fcose/LICENSE) (license, SHA-256 `2837634f403949215760fcdd2fa1ed0c64875d02099ecc8318c704b852f1421d`)
@@ -198,7 +210,7 @@ The SVG parity layer translates D3 curve algorithms, including basis, natural, s
 - Source path: `src/curve`
 - Relationship: `modified`, `translated`
 - License expression: `ISC`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/merman-render/src/svg/parity/curve.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/d3-shape/LICENSE`](THIRD_PARTY_LICENSES/d3-shape/LICENSE) (license, SHA-256 `faa682e3e430941f958d26180458f5934a62f58dac4d70ccdd15608c15d0f884`)
@@ -214,7 +226,7 @@ Dugong is a modified Rust translation of Dagre's directed graph layout pipeline.
 - Source path: `lib`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/dugong`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/dagre/LICENSE`](THIRD_PARTY_LICENSES/dagre/LICENSE) (license, SHA-256 `6a349742a6cb219d5a2fc8d0844f6d89a6efc62e20c664450d884fc7ff2d6015`)
@@ -231,7 +243,7 @@ Merman selects DOMPurify's Apache-2.0 option for generated sanitizer defaults; t
 - Relationship: `generated`, `translated`
 - License expression: `(Apache-2.0 OR MPL-2.0)`
 - Selected license path: `Apache-2.0`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
 - Local evidence: `crates/merman-core/src/generated/dompurify_defaults.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/dompurify/LICENSE`](THIRD_PARTY_LICENSES/dompurify/LICENSE) (license, SHA-256 `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`)
@@ -247,7 +259,7 @@ The merman-elk-layered crate contains a modified Rust source translation of Ecli
 - Source path: `plugins/org.eclipse.elk.alg.layered`
 - Relationship: `modified`, `translated`
 - License expression: `EPL-2.0`
-- Artifact scopes: `cli-default`, `elk-render`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-release`, `elk-render`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/merman-elk-layered`, `crates/merman-layout-elk`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/eclipse-elk/LICENSE.md`](THIRD_PARTY_LICENSES/eclipse-elk/LICENSE.md) (license, SHA-256 `89591d4578fb1ebd91501312a3d25f021bd865a2e436641c1cf7b1bc7e3c1617`)
@@ -263,7 +275,7 @@ Mermaid's ELK adapter behavior is compared against this JavaScript distribution,
 - Source path: `.`
 - Relationship: `behavior-reference`
 - License expression: `EPL-2.0`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-release`, `elk-render`, `playground-reference`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/merman-layout-elk`, `playground`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/elkjs/LICENSE.md`](THIRD_PARTY_LICENSES/elkjs/LICENSE.md) (license, SHA-256 `89591d4578fb1ebd91501312a3d25f021bd865a2e436641c1cf7b1bc7e3c1617`)
@@ -279,7 +291,7 @@ The Venn layout kernel translates the fmin Nelder-Mead and conjugate-gradient op
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `BSD-3-Clause`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/merman-render/src/venn.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/fmin/LICENSE`](THIRD_PARTY_LICENSES/fmin/LICENSE) (license, SHA-256 `e4503e78185bff178d3ee91835f082d05771da1b3a2d795f17e03a40251bab77`)
@@ -295,7 +307,7 @@ dugong-graphlib is a modified Rust translation of the graph model used by Dagre.
 - Source path: `lib`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/dugong-graphlib`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/graphlib/LICENSE`](THIRD_PARTY_LICENSES/graphlib/LICENSE) (license, SHA-256 `6a349742a6cb219d5a2fc8d0844f6d89a6efc62e20c664450d884fc7ff2d6015`)
@@ -311,7 +323,7 @@ The RaTeX SVG backend embeds twenty KaTeX TrueType fonts; those font bytes are l
 - Source path: `crates/ratex-katex-fonts/fonts`
 - Relationship: `embedded`
 - License expression: `OFL-1.1`
-- Artifact scopes: `cli-default`, `ratex-render`, `source-archive`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `ratex-render`, `source-archive`, `web-full`, `web-render`
 - Local evidence: `Cargo.lock`, `crates/merman-render/src/math.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/katex-fonts/FONT_NOTICE.txt`](THIRD_PARTY_LICENSES/katex-fonts/FONT_NOTICE.txt) (notice, SHA-256 `752ba9eff7a281f5ad789528ea078b46149b10e72296625108c26a94695ad03e`)
@@ -328,7 +340,7 @@ Manatee translates shared layout-base geometry, graph, and force-layout primitiv
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/layout-base-v1/LICENSE`](THIRD_PARTY_LICENSES/layout-base-v1/LICENSE) (license, SHA-256 `eabb762d8a95109a39c9be3247325529a5239a7aca327d909c3ccdc41f3a06bf`)
@@ -344,7 +356,7 @@ Manatee also follows the newer layout-base behavior selected by the FCoSE depend
 - Source path: `.`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/manatee`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/layout-base-v2/LICENSE`](THIRD_PARTY_LICENSES/layout-base-v2/LICENSE) (license, SHA-256 `eabb762d8a95109a39c9be3247325529a5239a7aca327d909c3ccdc41f3a06bf`)
@@ -353,14 +365,14 @@ Manatee also follows the newer layout-base behavior selected by the FCoSE depend
 
 Merman independently implements Mermaid-compatible behavior while translating selected algorithms, generating defaults, copying architecture icon data, and retaining upstream fixtures and snapshots.
 
-- Version: `11.16.1`
+- Version: `11.17.2`
 - Source: <https://github.com/mermaid-js/mermaid.git>
-- Source ref: `mermaid@11.16.1`
-- Source commit: `7ecca0cd7f1658ef74f4e7e91f925724ef403bbf`
+- Source ref: `mermaid@11.17.2`
+- Source commit: `dcb694ddb58dc5ad3502e7e903cac05fd812eac3`
 - Source path: `packages/mermaid`
 - Relationship: `behavior-reference`, `copied`, `fixtures`, `generated`, `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `ascii-render`, `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
+- Artifact scopes: `ascii-render`, `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
 - Local evidence: `crates/merman-core/src`, `crates/merman-render/src`, `crates/merman-render/src/svg/parity/architecture/icons.rs`, `fixtures`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/mermaid/LICENSE`](THIRD_PARTY_LICENSES/mermaid/LICENSE) (license, SHA-256 `ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80`)
@@ -397,6 +409,54 @@ This Rust renderer is retained as an ASCII and headless rendering behavior refer
 - Legal files:
   - [`THIRD_PARTY_LICENSES/mermaid-rs-renderer/LICENSE`](THIRD_PARTY_LICENSES/mermaid-rs-renderer/LICENSE) (license, SHA-256 `57ed7943c34463678a150769d4a4f6c95d2a190fe2c1977f74bc883492c94b86`)
 
+### monaqa/tree-sitter-mermaid (`monaqa-tree-sitter-mermaid`)
+
+The language package uses this grammar as the fixed downstream editor compatibility reference; it is not the public CST schema authority.
+
+- Version: `0.0.2`
+- Source: <https://github.com/monaqa/tree-sitter-mermaid.git>
+- Source ref: `master`
+- Source commit: `90ae195b31933ceb9d079abfa8a3ad0a36fee4cc`
+- Source path: `.`
+- Relationship: `behavior-reference`
+- License expression: `MIT`
+- Artifact scopes: `source-archive`, `tree-sitter-mermaid-source`
+- Local evidence: `distribution/tree-sitter-mermaid`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/tree-sitter-mermaid-monaqa/LICENSE`](THIRD_PARTY_LICENSES/tree-sitter-mermaid-monaqa/LICENSE) (license, SHA-256 `40e46efcec726e70cc95c553ac377674f0a5d2eec6089483ba237af7dae4c54c`)
+
+### non-layered-tidy-tree-layout (`non-layered-tidy-tree-layout`)
+
+Merman's Mindmap tidy-tree layout is a modified Rust translation of the non-layered tidy-tree contour and threading algorithm bundled by Mermaid's tidy-tree adapter.
+
+- Version: `2.0.2`
+- Source: <https://github.com/stetrevor/non-layered-tidy-tree-layout.git>
+- Source ref: `v2.0.2`
+- Source commit: `63852fb7646eb079ce0e1976044d54545de273e8`
+- Source path: `src`
+- Relationship: `modified`, `translated`
+- License expression: `MIT`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Local evidence: `crates/merman-render/src/mindmap/tidy_tree.rs`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/non-layered-tidy-tree-layout/LICENSE`](THIRD_PARTY_LICENSES/non-layered-tidy-tree-layout/LICENSE) (license, SHA-256 `9e618475934f16f1966a1f47cacea53ec0e8fbf7cb0054a5063b9446794a25df`)
+
+### pappasam/tree-sitter-mermaid (`pappasam-tree-sitter-mermaid`)
+
+The language package modifies selected grammar helpers and Flowchart/Mindmap seeds; metadata/derivations.json records each local path and source range.
+
+- Version: `0.1.0`
+- Source: <https://github.com/pappasam/tree-sitter-mermaid.git>
+- Source ref: `main`
+- Source commit: `1a11e2d8cf11afcfdb768f537c1a9bde294c24f9`
+- Source path: `.`
+- Relationship: `behavior-reference`, `modified`
+- License expression: `MIT`
+- Artifact scopes: `source-archive`, `tree-sitter-mermaid-source`
+- Local evidence: `distribution/tree-sitter-mermaid`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/tree-sitter-mermaid-pappasam/LICENSE`](THIRD_PARTY_LICENSES/tree-sitter-mermaid-pappasam/LICENSE) (license, SHA-256 `66f5a051ab96d2bb3ecccf32f6db1d97245dfcee2f0563de3e3267e827717061`)
+
 ### RaTeX (`ratex`)
 
 Optional math rendering links the RaTeX 0.1.14 crate family; its separately licensed embedded fonts are recorded as their own component.
@@ -408,7 +468,7 @@ Optional math rendering links the RaTeX 0.1.14 crate family; its separately lice
 - Source path: `crates`
 - Relationship: `linked`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `ratex-render`, `source-archive`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `ratex-render`, `source-archive`, `web-full`, `web-render`
 - Local evidence: `Cargo.lock`, `crates/merman-render/src/math.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/ratex/LICENSE`](THIRD_PARTY_LICENSES/ratex/LICENSE) (license, SHA-256 `f65e10eaa978c50a58c5e792110b4be5014b865edcb2ade49076bfcc98fa92b0`)
@@ -425,7 +485,7 @@ roughr-merman is a modified in-tree fork of the rough-rs roughr crate.
 - Source path: `roughr`
 - Relationship: `copied`, `modified`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/roughr`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/rough-rs/LICENSE`](THIRD_PARTY_LICENSES/rough-rs/LICENSE) (license, SHA-256 `0bef4264af5b4af4de4b01700f27afb7bdaf7498949692ff272ebf24489b0531`)
@@ -441,7 +501,7 @@ The roughr fork aligns its randomization and drawing-operation semantics with Ro
 - Source path: `src`
 - Relationship: `behavior-reference`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/roughr`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/roughjs/LICENSE`](THIRD_PARTY_LICENSES/roughjs/LICENSE) (license, SHA-256 `dca9a392272606ac748ac0976a2a1133f14eef841c27beaa51a844d53c56a09d`)
@@ -457,10 +517,74 @@ Merman's URL sanitization behavior is a source-backed Rust translation of saniti
 - Source path: `src`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
 - Local evidence: `crates/merman-core/src/utils.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/sanitize-url/LICENSE`](THIRD_PARTY_LICENSES/sanitize-url/LICENSE) (license, SHA-256 `0984740e0c3d725c8044dec7edcefe1dbce180ef5a7bc710c251e19607000158`)
+
+### singularity-parser-mermaid (`singularity-tree-sitter-mermaid`)
+
+The language package retains this implementation as an additional behavior reference for grammar and query coverage.
+
+- Version: `0.9.1`
+- Source: <https://github.com/singularity-ng/singularity-parser-mermaid.git>
+- Source ref: `main`
+- Source commit: `f5ac2752fbf0f74f9c836014b87e511303d2abae`
+- Source path: `.`
+- Relationship: `behavior-reference`
+- License expression: `MIT`
+- Artifact scopes: `source-archive`, `tree-sitter-mermaid-source`
+- Local evidence: `distribution/tree-sitter-mermaid`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/tree-sitter-mermaid-singularity/LICENSE`](THIRD_PARTY_LICENSES/tree-sitter-mermaid-singularity/LICENSE) (license, SHA-256 `601f9a3a5d582af11bd0386a3352435f8765b1d35bee882e5dc7ebb29cf3b540`)
+
+### Tree-sitter (`tree-sitter-generator`)
+
+The language package uses the pinned generator, copies its generated support headers, and modifies its C, Rust, and Node binding templates.
+
+- Version: `0.26.12`
+- Source: <https://github.com/tree-sitter/tree-sitter.git>
+- Source ref: `v0.26.12`
+- Source commit: `808e4b1fc06e269a107c4bd8bd936cc6fde18b00`
+- Source path: `.`
+- Relationship: `copied`, `generated`, `modified`
+- License expression: `MIT`
+- Artifact scopes: `source-archive`, `tree-sitter-mermaid-source`
+- Local evidence: `distribution/tree-sitter-mermaid`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/tree-sitter/LICENSE`](THIRD_PARTY_LICENSES/tree-sitter/LICENSE) (license, SHA-256 `c5cfb43042b6b72045f4ba997834d0a7786d2793d91680868b5815b39f14fc78`)
+
+### Mermaid (tree-sitter-mermaid baseline) (`tree-sitter-mermaid-mermaid-baseline`)
+
+The language package translates the exact Mermaid 11.16.1 syntax baseline and carries Merman-selected representative fixtures recorded against that baseline; this component intentionally does not move with the repository baseline.
+
+- Version: `11.16.1`
+- Source: <https://github.com/mermaid-js/mermaid.git>
+- Source ref: `mermaid@11.16.1`
+- Source commit: `7ecca0cd7f1658ef74f4e7e91f925724ef403bbf`
+- Source path: `packages/mermaid`
+- Relationship: `behavior-reference`, `fixtures`, `translated`
+- License expression: `MIT`
+- Artifact scopes: `source-archive`, `tree-sitter-mermaid-source`
+- Local evidence: `distribution/tree-sitter-mermaid`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/mermaid/LICENSE`](THIRD_PARTY_LICENSES/mermaid/LICENSE) (license, SHA-256 `ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80`)
+
+### ZenUML Core (tree-sitter-mermaid baseline) (`tree-sitter-mermaid-zenuml-baseline`)
+
+The language package follows the exact ZenUML Core 3.50.1 companion baseline and carries its representative wrapper fixture; this component intentionally does not move with the repository baseline.
+
+- Version: `3.50.1`
+- Source: <https://github.com/mermaid-js/zenuml-core.git>
+- Source ref: `v3.50.1`
+- Source commit: `38404ccc14243ed54ab45b804b2eb6f2ca73af36`
+- Source path: `.`
+- Relationship: `behavior-reference`, `fixtures`, `translated`
+- License expression: `MIT`
+- Artifact scopes: `source-archive`, `tree-sitter-mermaid-source`
+- Local evidence: `distribution/tree-sitter-mermaid`
+- Legal files:
+  - [`THIRD_PARTY_LICENSES/zenuml-core/LICENSE`](THIRD_PARTY_LICENSES/zenuml-core/LICENSE) (license, SHA-256 `d4a77cbf1dc0975cd4be7266972dc6d3a6c6d68d43235384d6e4b6f12934e978`)
 
 ### @upsetjs/venn.js (`venn-js`)
 
@@ -473,7 +597,7 @@ The Venn family uses a modified Rust translation of the venn.js geometry and lay
 - Source path: `src`
 - Relationship: `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-full`, `web-render`
 - Local evidence: `crates/merman-core/src/diagrams/venn.rs`, `crates/merman-render/src/venn.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/venn-js/LICENSE`](THIRD_PARTY_LICENSES/venn-js/LICENSE) (license, SHA-256 `6a3508febf2cfccfee96597394543a6154a4bb0b1f91f28404be42c09e9fcb54`)
@@ -505,7 +629,7 @@ Merman's ZenUML grammar, model, renderer, emoji/icon data, and behavior probes f
 - Source path: `.`
 - Relationship: `behavior-reference`, `copied`, `modified`, `translated`
 - License expression: `MIT`
-- Artifact scopes: `cli-default`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
+- Artifact scopes: `cli-default`, `cli-release`, `elk-render`, `playground-reference`, `ratex-render`, `rust-render-base`, `source-archive`, `typst-publish`, `web-analysis`, `web-ascii`, `web-editor`, `web-full`, `web-render`
 - Local evidence: `crates/merman-core/src/diagrams/zenuml`, `crates/merman-render/assets/zenuml`, `crates/merman-render/src/zenuml.rs`
 - Legal files:
   - [`THIRD_PARTY_LICENSES/zenuml-core/LICENSE`](THIRD_PARTY_LICENSES/zenuml-core/LICENSE) (license, SHA-256 `d4a77cbf1dc0975cd4be7266972dc6d3a6c6d68d43235384d6e4b6f12934e978`)

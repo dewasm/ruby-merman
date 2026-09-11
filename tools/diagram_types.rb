@@ -29,7 +29,7 @@ module Dewasm
         "C4Component" => ["c4", "C4Component\n  Person(a, \"A\")\n"],
         "C4Dynamic" => ["c4", "C4Dynamic\n  Person(a, \"A\")\n"],
         "C4Deployment" => ["c4", "C4Deployment\n  Person(a, \"A\")\n"],
-        "classDiagram" => ["class", "classDiagram\n  class Animal\n"],
+        "classDiagram" => ["classDiagram", "classDiagram\n  class Animal\n"],
         "cynefin-beta" => ["cynefin", "cynefin-beta\ncomplex\n\"Probe\"\n"],
         "erDiagram" => ["er", "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n"],
         "eventmodeling" => ["eventmodeling", "eventmodeling\ntf 01 cmd AddItem { productId: 7 }\n"],
@@ -159,13 +159,13 @@ module Dewasm
           raise "the sample for #{header} was detected as #{reported}, expected #{detected}"
         end
 
-        svg = Merman.render_svg(text)
+        svg = Merman.render(text)
         raise "the sample for #{header} did not render an SVG element" unless svg&.include?("<svg")
       end
 
-      # True when render_ascii accepts the sample, false when it refuses the diagram type; any other error is a broken sample and raises.
+      # True when a text-format render accepts the sample, false when it refuses the diagram type; any other error is a broken sample and raises.
       def ascii_supported?(header)
-        Merman.render_ascii(SAMPLES.fetch(header).last)
+        Merman.render(SAMPLES.fetch(header).last, format: :unicode)
         true
       rescue Error => e
         raise unless e.message.include?("does not support diagram type")

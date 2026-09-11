@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Renders the README's example diagrams and writes them under examples/, where the README displays them as images.
-# The render is render_svg_resvg_safe because its output has no foreignObject, which image contexts such as GitHub's README display may not support.
+# The render uses the resvg_safe pipeline because its output has no foreignObject, which image contexts such as GitHub's README display may not support.
 
 lib = File.expand_path("../lib", __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
@@ -25,7 +25,7 @@ module Dewasm
       module_function
 
       def render(text)
-        Merman.render_svg_resvg_safe(text)
+        Merman.render(text, pipeline: :resvg_safe)
       end
 
       def write_all

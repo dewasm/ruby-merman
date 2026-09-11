@@ -18,11 +18,23 @@ module Dewasm
     STATUS_ERROR = 2
     private_constant :STATUS_OK, :STATUS_NONE, :STATUS_ERROR
 
-    ASCII_ENUM_OPTIONS = %i[charset default_direction color_mode color_theme].freeze
+    SVG_ENUM_OPTIONS = %i[pipeline].freeze
+    SVG_OPTIONS = (SVG_ENUM_OPTIONS + %i[svg_id viewbox_padding]).freeze
+
+    ASCII_ENUM_OPTIONS = %i[
+      charset
+      width_profile
+      layout_profile
+      direction
+      color
+      color_theme
+      overflow
+    ].freeze
     ASCII_PLAIN_OPTIONS = %i[
       box_border_padding
       graph_padding_x
       graph_padding_y
+      flowchart_node_label_wrap_width
       sequence_participant_spacing
       sequence_message_spacing
       sequence_self_message_width
@@ -30,8 +42,9 @@ module Dewasm
       xychart_vertical_plot_height
       xychart_category_band_width
       xychart_horizontal_plot_width
-      max_grid_cells
       relation_summary_diagnostics
+      max_width
+      trim_trailing_spaces
     ].freeze
     ASCII_OPTIONS = (ASCII_ENUM_OPTIONS + ASCII_PLAIN_OPTIONS).freeze
 
@@ -51,104 +64,60 @@ module Dewasm
 
     module_function
 
-    # Renders the Mermaid parity SVG, or nil when the text is not a recognized diagram.
-    def render_svg(
+    # Renders the diagram text, or returns nil when the text is not a recognized diagram.
+    # The keywords follow merman-cli's render command: format takes the compiled --format values (:svg renders SVG and takes the SvgRequest options; :ascii and :unicode render terminal text starting from that charset), suppress_errors emits an error diagram instead of failing on parse errors, and resource_profile with resource_limits resolve the operation's resource policies from one profile and per-limit overrides keyed by merman's stable limit ids.
+    def render(
       text,
+      format: :svg,
       site_config: nil,
-      diagram_id: nil,
-      deterministic_text_measurer: false,
-      random: Random
-    )
-      call(
-        "merman_render_svg",
-        text,
-        svg_options(site_config, diagram_id, deterministic_text_measurer),
-        random
-      )
-    end
-
-    # Renders SVG with readable `<text>` fallbacks for `<foreignObject>` labels.
-    def render_svg_readable(
-      text,
-      site_config: nil,
-      diagram_id: nil,
-      deterministic_text_measurer: false,
-      random: Random
-    )
-      call(
-        "merman_render_svg_readable",
-        text,
-        svg_options(site_config, diagram_id, deterministic_text_measurer),
-        random
-      )
-    end
-
-    # Renders SVG restricted to what usvg, resvg, and raster converters accept.
-    def render_svg_resvg_safe(
-      text,
-      site_config: nil,
-      diagram_id: nil,
-      deterministic_text_measurer: false,
-      random: Random
-    )
-      call(
-        "merman_render_svg_resvg_safe",
-        text,
-        svg_options(site_config, diagram_id, deterministic_text_measurer),
-        random
-      )
-    end
-
-    # Renders terminal text, or nil when the text is not a recognized diagram.
-    def render_ascii(
-      text,
-      charset: :unicode,
-      strict_parsing: nil,
+      suppress_errors: nil,
+      resource_profile: nil,
+      resource_limits: nil,
       fixed_today: nil,
       fixed_local_offset_minutes: nil,
-      site_config: nil,
       random: Random,
-      **ascii_options
+      **format_options
     )
-      unknown = ascii_options.keys - ASCII_OPTIONS
-      raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
-
       options = {
         "site_config" => site_config,
-        "strict_parsing" => strict_parsing,
-        "fixed_today" => date_string(fixed_today),
+        "suppress_errors" => suppress_errors,
+        "resource_profile" => resource_profile&.to_s,
+        "resource_limits" => resource_limits&.to_h { |key, value| [key.to_s.tr("_", "-"), value] },
+        "fixed_today" => fixed_today&.strftime("%Y-%m-%d"),
         "fixed_local_offset_minutes" => fixed_local_offset_minutes,
-        "ascii" => ascii_option_json(ascii_options.merge(charset: charset))
+        "format" => format_json(format, format_options)
       }
-      call("merman_render_ascii", text, options, random)
+      call("merman_render", text, options, random)
     end
 
-    # Returns the diagram type, front-matter config, effective config, and title, or nil when the text is not a recognized diagram.
+    # Returns the diagram type, front-matter config, effective config, and title.
     def parse_metadata(text, site_config: nil, random: Random)
       json = call("merman_parse_metadata", text, { "site_config" => site_config }, random)
       json && JSON.parse(json)
     end
 
-    def svg_options(site_config, diagram_id, deterministic_text_measurer)
-      {
-        "site_config" => site_config,
-        "diagram_id" => diagram_id,
-        "deterministic_text_measurer" => deterministic_text_measurer
-      }
-    end
-    private_class_method :svg_options
+    def format_json(format, format_options)
+      case format
+      when :svg
+        unknown = format_options.keys - SVG_OPTIONS
+        raise ArgumentError, "unknown svg options: #{unknown.join(", ")}" unless unknown.empty?
 
-    def ascii_option_json(options)
-      options.to_h do |key, value|
-        [key.to_s, ASCII_ENUM_OPTIONS.include?(key) ? value.to_s : value]
+        { "svg" => option_json(format_options, SVG_ENUM_OPTIONS) }
+      when :ascii, :unicode
+        unknown = format_options.keys - ASCII_OPTIONS
+        raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
+
+        { format.to_s => option_json(format_options, ASCII_ENUM_OPTIONS) }
+      else
+        raise ArgumentError, "unknown format #{format.inspect}"
       end
     end
-    private_class_method :ascii_option_json
+    private_class_method :format_json
 
-    def date_string(date)
-      date&.strftime("%Y-%m-%d")
+    def option_json(options, enum_keys)
+      options.to_h { |key, value| [key.to_s, enum_keys.include?(key) ? value.to_s : value] }
     end
-    private_class_method :date_string
+    private_class_method :option_json
 
     def call(entry_point, text, options, random)
       run(restored_instance(random), entry_point, text, options)

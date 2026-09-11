@@ -49,10 +49,13 @@ module Measure
     rows << ["`require \"dewasm/merman\"`", seconds(process["require"])]
     rows << ["Resident memory after `require`", bytes(process["rss"])]
     rows << ["One module instantiation", seconds(in_process["instantiate"])]
-    rows << ["`render_svg`, flowchart", seconds(in_process["render_svg_flowchart"])]
-    rows << ["`render_svg`, sequence diagram", seconds(in_process["render_svg_sequence"])]
-    rows << ["`render_svg`, railroad diagram", seconds(in_process["render_svg_railroad"])]
-    rows << ["`render_ascii`, flowchart", seconds(in_process["render_ascii_flowchart"])]
+    rows << ["`render` to SVG, flowchart", seconds(in_process["render_svg_flowchart"])]
+    rows << ["`render` to SVG, sequence diagram", seconds(in_process["render_svg_sequence"])]
+    rows << ["`render` to SVG, railroad diagram", seconds(in_process["render_svg_railroad"])]
+    rows << [
+      "`render` to terminal text, flowchart",
+      seconds(in_process["render_unicode_flowchart"])
+    ]
     rows << ["`parse_metadata`", seconds(in_process["parse_metadata"])]
     rows
   end
@@ -121,10 +124,11 @@ module Measure
         "instantiate" => timed(#{RUNS}) do
           Dewasm::Merman::WasmModule.new(Dewasm::Merman::IMPORTS)
         end,
-        "render_svg_flowchart" => timed(#{RUNS}) { Dewasm::Merman.render_svg(FLOWCHART) },
-        "render_svg_sequence" => timed(#{RUNS}) { Dewasm::Merman.render_svg(SEQUENCE) },
-        "render_svg_railroad" => timed(#{RUNS}) { Dewasm::Merman.render_svg(RAILROAD) },
-        "render_ascii_flowchart" => timed(#{RUNS}) { Dewasm::Merman.render_ascii(FLOWCHART) },
+        "render_svg_flowchart" => timed(#{RUNS}) { Dewasm::Merman.render(FLOWCHART) },
+        "render_svg_sequence" => timed(#{RUNS}) { Dewasm::Merman.render(SEQUENCE) },
+        "render_svg_railroad" => timed(#{RUNS}) { Dewasm::Merman.render(RAILROAD) },
+        "render_unicode_flowchart" =>
+          timed(#{RUNS}) { Dewasm::Merman.render(FLOWCHART, format: :unicode) },
         "parse_metadata" => timed(#{RUNS}) { Dewasm::Merman.parse_metadata(FLOWCHART) }
       })
     RUBY
