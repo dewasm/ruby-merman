@@ -18,13 +18,17 @@ module Dewasm
     STATUS_ERROR = 2
     private_constant :STATUS_OK, :STATUS_NONE, :STATUS_ERROR
 
+    SVG_ENUM_OPTIONS = %i[pipeline].freeze
+    SVG_OPTIONS = (SVG_ENUM_OPTIONS + %i[svg_id viewbox_padding]).freeze
+
     ASCII_ENUM_OPTIONS = %i[
       charset
-      terminal_width_profile
+      width_profile
       layout_profile
-      default_direction
-      color_mode
+      direction
+      color
       color_theme
+      overflow
     ].freeze
     ASCII_PLAIN_OPTIONS = %i[
       box_border_padding
@@ -39,24 +43,10 @@ module Dewasm
       xychart_category_band_width
       xychart_horizontal_plot_width
       relation_summary_diagnostics
+      max_width
+      trim_trailing_spaces
     ].freeze
     ASCII_OPTIONS = (ASCII_ENUM_OPTIONS + ASCII_PLAIN_OPTIONS).freeze
-
-    SVG_ENUM_OPTIONS = %i[pipeline].freeze
-    SVG_OPTIONS = (SVG_ENUM_OPTIONS + %i[diagram_id viewbox_padding]).freeze
-
-    RESOURCE_OPTIONS = %i[
-      profile
-      max_grid_cells
-      max_layout_work_units
-      max_document_cells
-      max_output_bytes
-      max_grapheme_bytes
-      max_nesting_depth
-    ].freeze
-    VIEWPORT_OPTIONS = %i[max_width overflow trim].freeze
-    SYMBOL_VALUED_OPTIONS = %i[profile overflow trim].freeze
-    private_constant :RESOURCE_OPTIONS, :VIEWPORT_OPTIONS, :SYMBOL_VALUED_OPTIONS
 
     # The generated module carries no WASI implementation, so this resolves every WASI import the module declares.
     # A restored instance asks the host for nothing, so a call here means an assumption behind the shipped snapshot no longer holds.
@@ -75,20 +65,28 @@ module Dewasm
     module_function
 
     # Renders the diagram text, or returns nil when the text is not a recognized diagram.
-    # The format takes merman-cli's --format values: :svg renders SVG and takes the SvgRequest options, while :ascii and :unicode render terminal text in that charset and take the AsciiRequest parts (the AsciiRenderOptions fields directly, the AsciiResourcePolicy as resources:, and the AsciiViewportPolicy as viewport:).
+    # The keywords follow merman-cli's render command: format takes the compiled --format values (:svg renders SVG and takes the SvgRequest options; :ascii and :unicode render terminal text starting from that charset), suppress_errors emits an error diagram instead of failing on parse errors, and resource_profile with resource_limits resolve the operation's resource policies from one profile and per-limit overrides keyed by merman's stable limit ids.
     def render(
       text,
       format: :svg,
       site_config: nil,
-      parse_options: nil,
+      suppress_errors: nil,
+      resource_profile: nil,
+      resource_limits: nil,
       fixed_today: nil,
       fixed_local_offset_minutes: nil,
       random: Random,
       **format_options
     )
-      options =
-        operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
-      options["format"] = format_json(format, format_options)
+      options = {
+        "site_config" => site_config,
+        "suppress_errors" => suppress_errors,
+        "resource_profile" => resource_profile&.to_s,
+        "resource_limits" => resource_limits&.to_h { |key, value| [key.to_s.tr("_", "-"), value] },
+        "fixed_today" => fixed_today&.strftime("%Y-%m-%d"),
+        "fixed_local_offset_minutes" => fixed_local_offset_minutes,
+        "format" => format_json(format, format_options)
+      }
       call("merman_render", text, options, random)
     end
 
@@ -98,16 +96,6 @@ module Dewasm
       json && JSON.parse(json)
     end
 
-    def operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
-      {
-        "site_config" => site_config,
-        "parse_options" => parse_options&.to_s,
-        "fixed_today" => fixed_today&.strftime("%Y-%m-%d"),
-        "fixed_local_offset_minutes" => fixed_local_offset_minutes
-      }
-    end
-    private_class_method :operation_options
-
     def format_json(format, format_options)
       case format
       when :svg
@@ -116,32 +104,15 @@ module Dewasm
 
         { "svg" => option_json(format_options, SVG_ENUM_OPTIONS) }
       when :ascii, :unicode
-        resources = format_options.delete(:resources)
-        viewport = format_options.delete(:viewport)
         unknown = format_options.keys - ASCII_OPTIONS
         raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
 
-        request = {
-          "options" => option_json(format_options, ASCII_ENUM_OPTIONS),
-          "resources" => policy_json(resources, RESOURCE_OPTIONS, "resources"),
-          "viewport" => policy_json(viewport, VIEWPORT_OPTIONS, "viewport")
-        }.compact
-        { format.to_s => request }
+        { format.to_s => option_json(format_options, ASCII_ENUM_OPTIONS) }
       else
         raise ArgumentError, "unknown format #{format.inspect}"
       end
     end
     private_class_method :format_json
-
-    def policy_json(options, known, group)
-      return nil if options.nil?
-
-      unknown = options.keys - known
-      raise ArgumentError, "unknown #{group} options: #{unknown.join(", ")}" unless unknown.empty?
-
-      option_json(options, SYMBOL_VALUED_OPTIONS)
-    end
-    private_class_method :policy_json
 
     def option_json(options, enum_keys)
       options.to_h { |key, value| [key.to_s, enum_keys.include?(key) ? value.to_s : value] }

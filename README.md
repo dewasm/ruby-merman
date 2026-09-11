@@ -175,59 +175,45 @@ MERMAID
 | `Dewasm::Merman.render(text, format:, **options)` | `Renderer::render` with the format's `RenderRequest` |
 | `Dewasm::Merman.parse_metadata(text, **options)` | `Engine::parse_metadata_sync` |
 
+The keywords follow merman-cli's `render` command: an option that has a CLI flag carries the flag's name, and an option the CLI does not name carries its merman field name.
+
 `format:` takes the merman-cli `--format` values compiled into this gem: `:svg` (the default), and `:ascii` or `:unicode` for terminal text starting from that charset's `AsciiRenderOptions` constructor.
 
-Options on `render` for every format, carrying the operation-level merman APIs:
+Options on `render` for every format:
 
-| Option | Default | merman |
+| Option | Default | merman-cli / merman |
 | --- | --- | --- |
 | `site_config:` | `nil` | `Engine#with_site_config`, a Hash carried as JSON |
-| `parse_options:` | `nil` | `ParseOptions`: `:strict` or `:lenient`; `nil` keeps merman's own default |
-| `fixed_today:` | `nil` | `RuntimePolicy#with_fixed_today`, a `Date` |
-| `fixed_local_offset_minutes:` | `nil` | `RuntimePolicy#try_with_fixed_local_offset_minutes` |
+| `suppress_errors:` | `nil` | `--suppress-errors`: `true` emits an error diagram instead of failing on parse errors; `nil` keeps merman's own default |
+| `resource_profile:` | `nil` | `--resource-profile`: `:interactive`, `:constrained`, `:trusted_native`, or `:unbounded_for_trusted_input`, resolving every resource policy of the operation from one profile |
+| `resource_limits:` | `nil` | `--resource-limit`: a Hash from merman's stable limit ids (as symbols, `max_grid_cells:`, `max_source_bytes:`, ...) to values, applied over the profile |
+| `fixed_today:` | `nil` | `--fixed-today`, a `Date` |
+| `fixed_local_offset_minutes:` | `nil` | `--fixed-local-offset-minutes` |
 | `random:` | `Random` | the source of the render's hash seed |
 
-Options on `render(format: :svg)`, mirroring `SvgRequest`:
+Options on `render(format: :svg)`:
 
-| Option | Default | merman |
+| Option | Default | merman-cli / merman |
 | --- | --- | --- |
-| `pipeline:` | `nil` | `SvgRequest#pipeline`, an `SvgPipeline` preset: `:parity` (validated Mermaid-parity output), `:readable` (`<text>` fallbacks for `<foreignObject>` labels), or `:resvg_safe` (restricted to what usvg, resvg, and raster converters accept); `nil` keeps merman's default of applying none |
-| `diagram_id:` | `nil` | `SvgRenderOptions#diagram_id` |
+| `pipeline:` | `nil` | `--svg-pipeline`, an `SvgPipeline` preset: `:parity` (validated Mermaid-parity output), `:readable` (`<text>` fallbacks for `<foreignObject>` labels), or `:resvg_safe` (restricted to what usvg, resvg, and raster converters accept); `nil` keeps merman's default of applying none |
+| `svg_id:` | `nil` | `--svg-id`, the root SVG id and internal marker prefix |
 | `viewbox_padding:` | merman's default | `SvgRenderOptions#viewbox_padding` |
 
-Options on `render(format: :ascii)` and `render(format: :unicode)`, mirroring the three parts of `AsciiRequest`:
+Options on `render(format: :ascii)` and `render(format: :unicode)`, each with merman's default:
 
-| Option | merman |
-| --- | --- |
-| the `AsciiRenderOptions` keywords below | `AsciiRequest#options` |
-| `resources:`, a Hash | `AsciiRequest#resources`, an `AsciiResourcePolicy` |
-| `viewport:`, a Hash | `AsciiRequest#viewport`, an `AsciiViewportPolicy` |
-
-The `AsciiRenderOptions` fields come as keywords, each with merman's default:
-
-- `charset:` (`:unicode` or `:ascii`),
-- `terminal_width_profile:` (`:unicode` or `:cjk`),
-- `layout_profile:` (`:canonical` or `:compact`),
-- `default_direction:` (`:left_right` or `:top_down`),
-- `color_mode:` (`:plain`, `:ansi16`, `:ansi256`, `:true_color`, `:html`),
+- `charset:` (`:unicode` or `:ascii`), the `--ascii-charset` override of the format's charset,
+- `width_profile:` (`:unicode` or `:cjk`), the `--ascii-width-profile` display-width rule,
+- `layout_profile:` (`:canonical` or `:compact`), the `--ascii-layout-profile` density,
+- `direction:` (`:left_right` or `:top_down`), the `--ascii-direction` default,
+- `color:` (`:plain`, `:ansi16`, `:ansi256`, `:true_color`, `:html`), the `--ascii-color` mode,
 - `color_theme:` (`:light` or `:dark`),
-- `box_border_padding:`,
-- `graph_padding_x:`, `graph_padding_y:`,
-- `flowchart_node_label_wrap_width:`,
-- `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`, `sequence_mirror_actors:`,
-- `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`,
+- `flowchart_node_label_wrap_width:`, the `--ascii-flowchart-node-label-wrap-width` wrap point,
+- `sequence_mirror_actors:`, the `--sequence-mirror-actors` toggle,
+- `xychart_vertical_plot_height:`, `xychart_category_band_width:`, `xychart_horizontal_plot_width:`, the `--xychart-*` sizes,
+- `max_width:`, `overflow:` (`:allow`, `:fallback`, or `:error`), and `trim_trailing_spaces:`, the `--ascii-max-width`, `--ascii-overflow`, and `--ascii-trim-trailing-spaces` viewport controls,
+- `box_border_padding:`, `graph_padding_x:`, `graph_padding_y:`,
+- `sequence_participant_spacing:`, `sequence_message_spacing:`, `sequence_self_message_width:`,
 - `relation_summary_diagnostics:`.
-
-The `resources:` Hash selects a profile and overrides individual limits, each with merman's default:
-
-- `profile:` (`:interactive`, `:constrained`, `:trusted_native`, or `:unbounded_for_trusted_input`),
-- `max_grid_cells:`, `max_layout_work_units:`, `max_document_cells:`, `max_output_bytes:`, `max_grapheme_bytes:`, `max_nesting_depth:`.
-
-The `viewport:` Hash carries the `AsciiViewportPolicy` fields, each with merman's default:
-
-- `max_width:`,
-- `overflow:` (`:allow`, `:fallback`, or `:error`),
-- `trim:` (`:preserve` or `:trim_trailing_spaces`).
 
 `parse_metadata` takes `site_config:` and `random:`.
 
@@ -256,14 +242,14 @@ Measured on macOS 26.6.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Generated `wasm_module.rb` | 49.0 MB |
 | Shipped `snapshot.bin.gz` | 1.3 MB |
 | Packaged `.gem` | 8.5 MB |
-| `require "dewasm/merman"` | 3.7 s |
-| Resident memory after `require` | 1149.0 MB |
+| `require "dewasm/merman"` | 3.9 s |
+| Resident memory after `require` | 1149.1 MB |
 | One module instantiation | 17 ms |
-| `render` to SVG, flowchart | 54 ms |
-| `render` to SVG, sequence diagram | 56 ms |
-| `render` to SVG, railroad diagram | 50 ms |
-| `render` to terminal text, flowchart | 111 ms |
-| `parse_metadata` | 78 ms |
+| `render` to SVG, flowchart | 58 ms |
+| `render` to SVG, sequence diagram | 57 ms |
+| `render` to SVG, railroad diagram | 51 ms |
+| `render` to terminal text, flowchart | 115 ms |
+| `parse_metadata` | 81 ms |
 <!-- measurements:end -->
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.

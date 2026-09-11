@@ -1,11 +1,12 @@
 //! The wasm ABI that the Ruby side of dewasm-merman calls.
 //!
 //! Every entry point taking a diagram takes a UTF-8 text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
-//! The options JSON mirrors merman's request model: operation-level fields at the top level, and `format` naming the output the way merman-cli's `--format` does, `{"svg": ...}` carrying an `SvgRequest` or `{"ascii": ...}` / `{"unicode": ...}` carrying an `AsciiRequest` with its `options`, `resources`, and `viewport` parts.
+//! The options JSON follows merman-cli's `render` vocabulary: operation-level fields at the top level (`suppress_errors`, `resource_profile`, `resource_limits`, the fixed-time overrides), and `format` naming the output the way `--format` does, `{"svg": ...}` or the flat `{"ascii": ...}` / `{"unicode": ...}` option sets.
 //! `merman_diagram_types` takes nothing and returns the diagram type table rows as JSON.
 //! The payload is read back with `merman_result_ptr` and `merman_result_len`.
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 
 use merman::ascii::{
     AsciiCharset, AsciiColorMode, AsciiColorTheme, AsciiDirection, AsciiLayoutProfile,
@@ -14,7 +15,7 @@ use merman::ascii::{
 };
 use merman::resources::ResourceProfile;
 use merman::runtime::RuntimePolicy;
-use merman::svg::SvgPipeline;
+use merman::svg::{RenderResourcePolicy, SvgEnvironment, SvgPipeline};
 use merman::time::CivilDate;
 use merman::{
     AsciiRequest, Engine, OperationControl, ParseOptions, RenderOutput, RenderRequest, Renderer,
@@ -70,7 +71,9 @@ fn error(message: impl std::fmt::Display) -> u32 {
 #[serde(default, deny_unknown_fields)]
 struct Options {
     site_config: Option<Value>,
-    parse_options: Option<String>,
+    suppress_errors: Option<bool>,
+    resource_profile: Option<String>,
+    resource_limits: Option<BTreeMap<String, u64>>,
     fixed_today: Option<String>,
     fixed_local_offset_minutes: Option<i32>,
     format: Option<FormatOptions>,
@@ -81,34 +84,27 @@ struct Options {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 enum FormatOptions {
     Svg(SvgOptions),
-    Ascii(AsciiRequestOptions),
-    Unicode(AsciiRequestOptions),
+    Ascii(AsciiOptions),
+    Unicode(AsciiOptions),
 }
 
 #[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct SvgOptions {
     pipeline: Option<String>,
-    diagram_id: Option<String>,
+    svg_id: Option<String>,
     viewbox_padding: Option<f64>,
 }
 
-#[derive(Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-struct AsciiRequestOptions {
-    options: AsciiOptions,
-    resources: ResourceOptions,
-    viewport: ViewportOptions,
-}
-
+/// One flat option set per merman-cli's `ascii-*` flags plus the `AsciiRenderOptions` fields the CLI does not name; `max_width`, `overflow`, and `trim_trailing_spaces` land on the `AsciiViewportPolicy`.
 #[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct AsciiOptions {
     charset: Option<String>,
-    terminal_width_profile: Option<String>,
+    width_profile: Option<String>,
     layout_profile: Option<String>,
-    default_direction: Option<String>,
-    color_mode: Option<String>,
+    direction: Option<String>,
+    color: Option<String>,
     color_theme: Option<String>,
     box_border_padding: Option<usize>,
     graph_padding_x: Option<usize>,
@@ -122,26 +118,9 @@ struct AsciiOptions {
     xychart_category_band_width: Option<usize>,
     xychart_horizontal_plot_width: Option<usize>,
     relation_summary_diagnostics: Option<bool>,
-}
-
-#[derive(Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-struct ResourceOptions {
-    profile: Option<String>,
-    max_grid_cells: Option<usize>,
-    max_layout_work_units: Option<usize>,
-    max_document_cells: Option<usize>,
-    max_output_bytes: Option<usize>,
-    max_grapheme_bytes: Option<usize>,
-    max_nesting_depth: Option<usize>,
-}
-
-#[derive(Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-struct ViewportOptions {
     max_width: Option<usize>,
     overflow: Option<String>,
-    trim: Option<String>,
+    trim_trailing_spaces: Option<bool>,
 }
 
 struct Input<'a> {
@@ -196,20 +175,60 @@ fn runtime_policy(options: &Options) -> Result<Option<RuntimePolicy>, String> {
     Ok(Some(policy))
 }
 
+/// The render-side and ASCII-side policies resolved from one profile and one override list, the way merman-cli's `--resource-profile` and `--resource-limit` resolve them.
+struct ResolvedResources {
+    render: RenderResourcePolicy,
+    ascii: AsciiResourcePolicy,
+}
+
+/// Returns `None` when neither resource option is set, keeping merman's own per-domain defaults.
+///
+/// Each override routes by its stable id, ASCII limits first and the input and SVG limits after, mirroring merman-cli's routing.
+fn resolved_resources(options: &Options) -> Result<Option<ResolvedResources>, String> {
+    let no_limits = options
+        .resource_limits
+        .as_ref()
+        .is_none_or(BTreeMap::is_empty);
+    if options.resource_profile.is_none() && no_limits {
+        return Ok(None);
+    }
+    let mut resolved = match &options.resource_profile {
+        Some(name) => {
+            let profile = resource_profile(name)?;
+            ResolvedResources {
+                render: RenderResourcePolicy::for_profile(profile),
+                ascii: AsciiResourcePolicy::for_profile(profile),
+            }
+        }
+        None => ResolvedResources {
+            render: RenderResourcePolicy::default(),
+            ascii: AsciiResourcePolicy::default(),
+        },
+    };
+    for (stable_id, value) in options.resource_limits.iter().flatten() {
+        let value = usize::try_from(*value)
+            .map_err(|_| format!("resource limit {stable_id} value {value} is out of range"))?;
+        if let Some(id) = AsciiResourceLimitId::from_stable_id(stable_id) {
+            resolved
+                .ascii
+                .apply_limit(id, value)
+                .map_err(|e| format!("invalid resource limit {stable_id}: {e}"))?;
+            continue;
+        }
+        resolved
+            .render
+            .apply_override(stable_id, value)
+            .map_err(|e| format!("invalid resource limit {stable_id}: {e}"))?;
+    }
+    Ok(Some(resolved))
+}
+
 fn pipeline(name: &str) -> Result<SvgPipeline, String> {
     match name {
         "parity" => Ok(SvgPipeline::parity()),
         "readable" => Ok(SvgPipeline::readable()),
         "resvg_safe" => Ok(SvgPipeline::resvg_safe()),
         other => Err(format!("unknown pipeline {other:?}")),
-    }
-}
-
-fn parse_options(name: &str) -> Result<ParseOptions, String> {
-    match name {
-        "strict" => Ok(ParseOptions::strict()),
-        "lenient" => Ok(ParseOptions::lenient()),
-        other => Err(format!("unknown parse_options {other:?}")),
     }
 }
 
@@ -221,11 +240,11 @@ fn charset(name: &str) -> Result<AsciiCharset, String> {
     }
 }
 
-fn terminal_width_profile(name: &str) -> Result<TerminalWidthProfile, String> {
+fn width_profile(name: &str) -> Result<TerminalWidthProfile, String> {
     match name {
         "unicode" => Ok(TerminalWidthProfile::Unicode),
         "cjk" => Ok(TerminalWidthProfile::Cjk),
-        other => Err(format!("unknown terminal_width_profile {other:?}")),
+        other => Err(format!("unknown width_profile {other:?}")),
     }
 }
 
@@ -241,18 +260,18 @@ fn direction(name: &str) -> Result<AsciiDirection, String> {
     match name {
         "left_right" => Ok(AsciiDirection::LeftRight),
         "top_down" => Ok(AsciiDirection::TopDown),
-        other => Err(format!("unknown default_direction {other:?}")),
+        other => Err(format!("unknown direction {other:?}")),
     }
 }
 
-fn color_mode(name: &str) -> Result<AsciiColorMode, String> {
+fn color(name: &str) -> Result<AsciiColorMode, String> {
     match name {
         "plain" => Ok(AsciiColorMode::Plain),
         "ansi16" => Ok(AsciiColorMode::Ansi16),
         "ansi256" => Ok(AsciiColorMode::Ansi256),
         "true_color" => Ok(AsciiColorMode::TrueColor),
         "html" => Ok(AsciiColorMode::Html),
-        other => Err(format!("unknown color_mode {other:?}")),
+        other => Err(format!("unknown color {other:?}")),
     }
 }
 
@@ -270,7 +289,7 @@ fn resource_profile(name: &str) -> Result<ResourceProfile, String> {
         "constrained" => Ok(ResourceProfile::Constrained),
         "trusted_native" => Ok(ResourceProfile::TrustedNative),
         "unbounded_for_trusted_input" => Ok(ResourceProfile::UnboundedForTrustedInput),
-        other => Err(format!("unknown resources profile {other:?}")),
+        other => Err(format!("unknown resource_profile {other:?}")),
     }
 }
 
@@ -279,15 +298,7 @@ fn overflow(name: &str) -> Result<OverflowPolicy, String> {
         "allow" => Ok(OverflowPolicy::Allow),
         "fallback" => Ok(OverflowPolicy::Fallback),
         "error" => Ok(OverflowPolicy::Error),
-        other => Err(format!("unknown viewport overflow {other:?}")),
-    }
-}
-
-fn trim(name: &str) -> Result<AsciiTrimPolicy, String> {
-    match name {
-        "preserve" => Ok(AsciiTrimPolicy::Preserve),
-        "trim_trailing_spaces" => Ok(AsciiTrimPolicy::TrimTrailingSpaces),
-        other => Err(format!("unknown viewport trim {other:?}")),
+        other => Err(format!("unknown overflow {other:?}")),
     }
 }
 
@@ -298,17 +309,17 @@ fn ascii_options(
     if let Some(value) = &options.charset {
         ascii.charset = charset(value)?;
     }
-    if let Some(value) = &options.terminal_width_profile {
-        ascii.terminal_width_profile = terminal_width_profile(value)?;
+    if let Some(value) = &options.width_profile {
+        ascii.terminal_width_profile = width_profile(value)?;
     }
     if let Some(value) = &options.layout_profile {
         ascii.layout_profile = layout_profile(value)?;
     }
-    if let Some(value) = &options.default_direction {
+    if let Some(value) = &options.direction {
         ascii.default_direction = direction(value)?;
     }
-    if let Some(value) = &options.color_mode {
-        ascii.color_mode = color_mode(value)?;
+    if let Some(value) = &options.color {
+        ascii.color_mode = color(value)?;
     }
     if let Some(value) = &options.color_theme {
         ascii.color_theme = color_theme(value)?;
@@ -352,64 +363,27 @@ fn ascii_options(
     Ok(ascii)
 }
 
-fn resource_policy(options: &ResourceOptions) -> Result<AsciiResourcePolicy, String> {
-    let mut policy = AsciiResourcePolicy::default();
-    if let Some(name) = &options.profile {
-        policy = policy.with_profile(resource_profile(name)?);
-    }
-    let limits = [
-        (AsciiResourceLimitId::MaxGridCells, options.max_grid_cells),
-        (
-            AsciiResourceLimitId::MaxLayoutWorkUnits,
-            options.max_layout_work_units,
-        ),
-        (
-            AsciiResourceLimitId::MaxDocumentCells,
-            options.max_document_cells,
-        ),
-        (
-            AsciiResourceLimitId::MaxOutputBytes,
-            options.max_output_bytes,
-        ),
-        (
-            AsciiResourceLimitId::MaxGraphemeBytes,
-            options.max_grapheme_bytes,
-        ),
-        (
-            AsciiResourceLimitId::MaxNestingDepth,
-            options.max_nesting_depth,
-        ),
-    ];
-    for (id, value) in limits {
-        if let Some(value) = value {
-            policy = policy
-                .with_limit(id, value)
-                .map_err(|e| format!("invalid resources {} {value}: {e}", id.as_str()))?;
-        }
-    }
-    Ok(policy)
-}
-
-fn viewport_policy(options: &ViewportOptions) -> Result<AsciiViewportPolicy, String> {
+fn viewport_policy(options: &AsciiOptions) -> Result<AsciiViewportPolicy, String> {
     let mut viewport = AsciiViewportPolicy::default();
     viewport.max_width = options.max_width;
     if let Some(name) = &options.overflow {
         viewport.overflow = overflow(name)?;
     }
-    if let Some(name) = &options.trim {
-        viewport.trim = trim(name)?;
+    if options.trim_trailing_spaces == Some(true) {
+        viewport.trim = AsciiTrimPolicy::TrimTrailingSpaces;
     }
     Ok(viewport)
 }
 
 fn ascii_request(
-    options: &AsciiRequestOptions,
+    options: &AsciiOptions,
     base: AsciiRenderOptions,
+    resources: Option<&ResolvedResources>,
 ) -> Result<AsciiRequest, String> {
     Ok(AsciiRequest {
-        options: ascii_options(&options.options, base)?,
-        resources: resource_policy(&options.resources)?,
-        viewport: viewport_policy(&options.viewport)?,
+        options: ascii_options(options, base)?,
+        resources: resources.map(|r| r.ascii.clone()).unwrap_or_default(),
+        viewport: viewport_policy(options)?,
     })
 }
 
@@ -424,10 +398,17 @@ fn engine(options: &Options) -> Result<Engine, String> {
     Ok(engine)
 }
 
-fn renderer(options: &Options) -> Result<Renderer, String> {
+fn renderer(options: &Options, resources: Option<&ResolvedResources>) -> Result<Renderer, String> {
     let mut renderer = Renderer::new().with_engine(engine(options)?);
-    if let Some(name) = &options.parse_options {
-        renderer = renderer.with_parse_options(parse_options(name)?);
+    if let Some(suppress) = options.suppress_errors {
+        renderer = renderer.with_parse_options(if suppress {
+            ParseOptions::lenient()
+        } else {
+            ParseOptions::strict()
+        });
+    }
+    if let Some(resolved) = resources {
+        renderer = renderer.with_resource_policy(resolved.render.input_policy().clone());
     }
     Ok(renderer)
 }
@@ -436,9 +417,12 @@ fn merman_config(value: Value) -> merman::MermaidConfig {
     merman::MermaidConfig::from_value(value)
 }
 
-fn svg_request(options: &SvgOptions) -> Result<SvgRequest, String> {
+fn svg_request(
+    options: &SvgOptions,
+    resources: Option<&ResolvedResources>,
+) -> Result<SvgRequest, String> {
     let mut request = SvgRequest::default();
-    request.options.diagram_id = options.diagram_id.clone();
+    request.options.diagram_id = options.svg_id.clone();
     if let Some(value) = options.viewbox_padding {
         request.options.viewbox_padding = value;
     }
@@ -446,6 +430,10 @@ fn svg_request(options: &SvgOptions) -> Result<SvgRequest, String> {
     // forbidden-character scans and a well-formedness validation over the whole SVG per render.
     if let Some(name) = &options.pipeline {
         request.pipeline = Some(pipeline(name)?);
+    }
+    if let Some(resolved) = resources {
+        request.environment =
+            SvgEnvironment::deterministic().with_resource_policy(resolved.render.clone());
     }
     Ok(request)
 }
@@ -461,7 +449,11 @@ pub extern "C" fn merman_render(
         Ok(input) => input,
         Err(message) => return error(message),
     };
-    let renderer = match renderer(&input.options) {
+    let resources = match resolved_resources(&input.options) {
+        Ok(resources) => resources,
+        Err(message) => return error(message),
+    };
+    let renderer = match renderer(&input.options, resources.as_ref()) {
         Ok(renderer) => renderer,
         Err(message) => return error(message),
     };
@@ -469,7 +461,7 @@ pub extern "C" fn merman_render(
     match &input.options.format {
         None => error("options JSON has no format"),
         Some(FormatOptions::Svg(options)) => {
-            let request = match svg_request(options) {
+            let request = match svg_request(options, resources.as_ref()) {
                 Ok(request) => request,
                 Err(message) => return error(message),
             };
@@ -486,6 +478,7 @@ pub extern "C" fn merman_render(
             control,
             options,
             AsciiRenderOptions::ascii(),
+            resources.as_ref(),
         ),
         Some(FormatOptions::Unicode(options)) => render_text(
             &renderer,
@@ -493,6 +486,7 @@ pub extern "C" fn merman_render(
             control,
             options,
             AsciiRenderOptions::unicode(),
+            resources.as_ref(),
         ),
     }
 }
@@ -501,10 +495,11 @@ fn render_text(
     renderer: &Renderer,
     text: &str,
     control: OperationControl,
-    options: &AsciiRequestOptions,
+    options: &AsciiOptions,
     base: AsciiRenderOptions,
+    resources: Option<&ResolvedResources>,
 ) -> u32 {
-    let request = match ascii_request(options, base) {
+    let request = match ascii_request(options, base, resources) {
         Ok(request) => request,
         Err(message) => return error(message),
     };

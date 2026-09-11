@@ -33,8 +33,8 @@ class MermanTest < Minitest::Test
     refute_includes resvg_safe, "<foreignObject"
   end
 
-  def test_diagram_id_appears_in_the_svg
-    svg = Dewasm::Merman.render(Diagrams::FLOWCHART, diagram_id: "my-diagram")
+  def test_svg_id_appears_in_the_svg
+    svg = Dewasm::Merman.render(Diagrams::FLOWCHART, svg_id: "my-diagram")
 
     assert_includes svg, "my-diagram"
   end
@@ -95,33 +95,41 @@ class MermanTest < Minitest::Test
     end
   end
 
-  def test_render_rejects_an_unknown_resources_option
-    assert_raises(ArgumentError) do
-      Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii, resources: { no_such_limit: 1 })
-    end
+  def test_an_unknown_resource_limit_is_rejected
+    error =
+      assert_raises(Dewasm::Merman::Error) do
+        Dewasm::Merman.render(Diagrams::FLOWCHART, resource_limits: { no_such_limit: 1 })
+      end
+
+    assert_includes error.message, "no-such-limit"
   end
 
-  def test_resources_limit_is_enforced
+  def test_a_resource_limit_is_enforced
     assert_raises(Dewasm::Merman::Error) do
-      Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii, resources: { max_grid_cells: 1 })
-    end
-  end
-
-  def test_viewport_trim_removes_trailing_spaces
-    text =
       Dewasm::Merman.render(
         Diagrams::FLOWCHART,
-        format: :unicode,
-        viewport: {
-          trim: :trim_trailing_spaces
+        format: :ascii,
+        resource_limits: {
+          max_grid_cells: 1
         }
       )
+    end
+  end
+
+  def test_a_resource_profile_is_accepted
+    svg = Dewasm::Merman.render(Diagrams::FLOWCHART, resource_profile: :constrained)
+
+    assert svg.start_with?("<svg")
+  end
+
+  def test_trim_trailing_spaces_removes_them
+    text = Dewasm::Merman.render(Diagrams::FLOWCHART, format: :unicode, trim_trailing_spaces: true)
 
     assert(text.lines.none? { |line| line.chomp.end_with?(" ") })
   end
 
-  def test_parse_options_lenient_renders_the_error_diagram
-    svg = Dewasm::Merman.render("flowchart TD\n  ]]] ---", parse_options: :lenient)
+  def test_suppress_errors_renders_the_error_diagram
+    svg = Dewasm::Merman.render("flowchart TD\n  ]]] ---", suppress_errors: true)
 
     assert svg.start_with?("<svg")
   end
