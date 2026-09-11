@@ -1,7 +1,7 @@
 //! The wasm ABI that the Ruby side of dewasm-merman calls.
 //!
-//! Every rendering entry point takes a UTF-8 diagram text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
-//! The options JSON mirrors merman's request model: operation-level fields at the top level, `svg` for `SvgRequest`, and `ascii` for `AsciiRequest` with its `options`, `resources`, and `viewport` parts.
+//! Every entry point taking a diagram takes a UTF-8 text and a UTF-8 options JSON document and returns a status: 0 for a result, 1 for "not a recognized diagram" (upstream `Ok(None)`, no payload), 2 for an error whose message is the payload.
+//! The options JSON mirrors merman's request model: operation-level fields at the top level, and `format` naming the output the way merman-cli's `--format` does, `{"svg": ...}` carrying an `SvgRequest` or `{"ascii": ...}` / `{"unicode": ...}` carrying an `AsciiRequest` with its `options`, `resources`, and `viewport` parts.
 //! `merman_diagram_types` takes nothing and returns the diagram type table rows as JSON.
 //! The payload is read back with `merman_result_ptr` and `merman_result_len`.
 
@@ -73,8 +73,16 @@ struct Options {
     parse_options: Option<String>,
     fixed_today: Option<String>,
     fixed_local_offset_minutes: Option<i32>,
-    svg: SvgOptions,
-    ascii: AsciiRequestOptions,
+    format: Option<FormatOptions>,
+}
+
+/// The format names are merman-cli's `--format` values; `ascii` and `unicode` differ only in the `AsciiRenderOptions` constructor they start from.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+enum FormatOptions {
+    Svg(SvgOptions),
+    Ascii(AsciiRequestOptions),
+    Unicode(AsciiRequestOptions),
 }
 
 #[derive(Default, Deserialize)]
@@ -283,8 +291,10 @@ fn trim(name: &str) -> Result<AsciiTrimPolicy, String> {
     }
 }
 
-fn ascii_options(options: &AsciiOptions) -> Result<AsciiRenderOptions, String> {
-    let mut ascii = AsciiRenderOptions::default();
+fn ascii_options(
+    options: &AsciiOptions,
+    mut ascii: AsciiRenderOptions,
+) -> Result<AsciiRenderOptions, String> {
     if let Some(value) = &options.charset {
         ascii.charset = charset(value)?;
     }
@@ -392,9 +402,12 @@ fn viewport_policy(options: &ViewportOptions) -> Result<AsciiViewportPolicy, Str
     Ok(viewport)
 }
 
-fn ascii_request(options: &AsciiRequestOptions) -> Result<AsciiRequest, String> {
+fn ascii_request(
+    options: &AsciiRequestOptions,
+    base: AsciiRenderOptions,
+) -> Result<AsciiRequest, String> {
     Ok(AsciiRequest {
-        options: ascii_options(&options.options)?,
+        options: ascii_options(&options.options, base)?,
         resources: resource_policy(&options.resources)?,
         viewport: viewport_policy(&options.viewport)?,
     })
@@ -423,22 +436,22 @@ fn merman_config(value: Value) -> merman::MermaidConfig {
     merman::MermaidConfig::from_value(value)
 }
 
-fn svg_request(options: &Options) -> Result<SvgRequest, String> {
+fn svg_request(options: &SvgOptions) -> Result<SvgRequest, String> {
     let mut request = SvgRequest::default();
-    request.options.diagram_id = options.svg.diagram_id.clone();
-    if let Some(value) = options.svg.viewbox_padding {
+    request.options.diagram_id = options.diagram_id.clone();
+    if let Some(value) = options.viewbox_padding {
         request.options.viewbox_padding = value;
     }
     // An absent pipeline stays merman's `None` default: even the empty parity preset costs two
     // forbidden-character scans and a well-formedness validation over the whole SVG per render.
-    if let Some(name) = &options.svg.pipeline {
+    if let Some(name) = &options.pipeline {
         request.pipeline = Some(pipeline(name)?);
     }
     Ok(request)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn merman_render_svg(
+pub extern "C" fn merman_render(
     text_ptr: *const u8,
     text_len: u32,
     options_ptr: *const u8,
@@ -452,46 +465,50 @@ pub extern "C" fn merman_render_svg(
         Ok(renderer) => renderer,
         Err(message) => return error(message),
     };
-    let request = match svg_request(&input.options) {
-        Ok(request) => request,
-        Err(message) => return error(message),
-    };
-    match renderer.render(RenderRequest::svg(
-        input.text,
-        OperationControl::new(),
-        request,
-    )) {
-        Ok(RenderOutput::Svg(Some(output))) => ok(output.into_parts().0),
-        // An SVG request only produces `RenderOutput::Svg`; `None` is "not a recognized diagram".
-        Ok(_) => none(),
-        Err(e) => error(e),
+    let control = OperationControl::new();
+    match &input.options.format {
+        None => error("options JSON has no format"),
+        Some(FormatOptions::Svg(options)) => {
+            let request = match svg_request(options) {
+                Ok(request) => request,
+                Err(message) => return error(message),
+            };
+            match renderer.render(RenderRequest::svg(input.text, control, request)) {
+                Ok(RenderOutput::Svg(Some(output))) => ok(output.into_parts().0),
+                // An SVG request only produces `RenderOutput::Svg`; `None` is "not a recognized diagram".
+                Ok(_) => none(),
+                Err(e) => error(e),
+            }
+        }
+        Some(FormatOptions::Ascii(options)) => render_text(
+            &renderer,
+            input.text,
+            control,
+            options,
+            AsciiRenderOptions::ascii(),
+        ),
+        Some(FormatOptions::Unicode(options)) => render_text(
+            &renderer,
+            input.text,
+            control,
+            options,
+            AsciiRenderOptions::unicode(),
+        ),
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn merman_render_ascii(
-    text_ptr: *const u8,
-    text_len: u32,
-    options_ptr: *const u8,
-    options_len: u32,
+fn render_text(
+    renderer: &Renderer,
+    text: &str,
+    control: OperationControl,
+    options: &AsciiRequestOptions,
+    base: AsciiRenderOptions,
 ) -> u32 {
-    let input = match read_input(text_ptr, text_len, options_ptr, options_len) {
-        Ok(input) => input,
-        Err(message) => return error(message),
-    };
-    let renderer = match renderer(&input.options) {
-        Ok(renderer) => renderer,
-        Err(message) => return error(message),
-    };
-    let request = match ascii_request(&input.options.ascii) {
+    let request = match ascii_request(options, base) {
         Ok(request) => request,
         Err(message) => return error(message),
     };
-    match renderer.render(RenderRequest::ascii(
-        input.text,
-        OperationControl::new(),
-        request,
-    )) {
+    match renderer.render(RenderRequest::ascii(text, control, request)) {
         Ok(RenderOutput::Ascii(Some(output))) => ok(output.into_text()),
         // An ASCII request only produces `RenderOutput::Ascii`; `None` is "not a recognized diagram".
         Ok(_) => none(),

@@ -159,13 +159,13 @@ module Dewasm
           raise "the sample for #{header} was detected as #{reported}, expected #{detected}"
         end
 
-        svg = Merman.render_svg(text)
+        svg = Merman.render(text)
         raise "the sample for #{header} did not render an SVG element" unless svg&.include?("<svg")
       end
 
-      # True when render_ascii accepts the sample, false when it refuses the diagram type; any other error is a broken sample and raises.
+      # True when a text-format render accepts the sample, false when it refuses the diagram type; any other error is a broken sample and raises.
       def ascii_supported?(header)
-        Merman.render_ascii(SAMPLES.fetch(header).last)
+        Merman.render(SAMPLES.fetch(header).last, format: :unicode)
         true
       rescue Error => e
         raise unless e.message.include?("does not support diagram type")

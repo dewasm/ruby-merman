@@ -30,7 +30,7 @@ Ruby 3.4 or newer is required, because the converted module stores WebAssembly l
 ```ruby
 require "dewasm/merman"
 
-svg = Dewasm::Merman.render_svg(<<~MERMAID)
+svg = Dewasm::Merman.render(<<~MERMAID)
   flowchart LR
     A[Commit] --> B{CI passes?}
     B -->|Yes| C[Merge]
@@ -46,7 +46,7 @@ File.write("flowchart.svg", svg)
 Railroad grammar diagrams render the same way:
 
 ```ruby
-svg = Dewasm::Merman.render_svg(<<~MERMAID)
+svg = Dewasm::Merman.render(<<~MERMAID)
   railroad-ebnf-beta
   expr = term , { "+" , term } ;
   term = factor , { "*" , factor } ;
@@ -59,7 +59,7 @@ MERMAID
 Terminal text instead of SVG:
 
 ```ruby
-puts Dewasm::Merman.render_ascii(<<~MERMAID)
+puts Dewasm::Merman.render(<<~MERMAID, format: :unicode)
   flowchart LR
     A[Start] --> B[Done]
 MERMAID
@@ -74,7 +74,7 @@ MERMAID
 ```
 
 ```ruby
-puts Dewasm::Merman.render_ascii(<<~MERMAID, charset: :ascii)
+puts Dewasm::Merman.render(<<~MERMAID, format: :ascii)
   flowchart TD
     A[Start] --> B[Done]
 MERMAID
@@ -101,7 +101,7 @@ MERMAID
 ## Diagram types
 
 The enabled features are merman's full SVG capability set: the Cytoscape and ELK layout engines and the RaTeX math backend are all compiled in, so no diagram type and no `layout:` or `$$...$$` construct is turned off by the feature selection.
-`render_ascii` covers the subset merman renders as terminal text; asking it for a type without a check in the ASCII column raises `Dewasm::Merman::Error`.
+The `:ascii` and `:unicode` formats cover the subset merman renders as terminal text; asking them for a type without a check in the ASCII column raises `Dewasm::Merman::Error`.
 Each row names the keyword the diagram text opens with.
 
 <!-- diagram-types:begin -->
@@ -160,7 +160,7 @@ metadata["effective_config"]["theme"]  # => "default"
 Mermaid site configuration is a Hash, serialized to JSON and applied as merman's site config:
 
 ```ruby
-svg = Dewasm::Merman.render_svg(<<~MERMAID, site_config: { "theme" => "dark" })
+svg = Dewasm::Merman.render(<<~MERMAID, site_config: { "theme" => "dark" })
   flowchart TD
     A --> B
 MERMAID
@@ -168,16 +168,16 @@ MERMAID
 
 ## API
 
-A single call renders the given diagram text to SVG or to terminal text.
-The functions and their keyword groups mirror merman's request model.
+`render` turns the given diagram text into one output format, named the way merman-cli's `render --format` names it; `parse_metadata` reads diagram metadata without rendering.
 
 | Ruby | merman |
 | --- | --- |
-| `Dewasm::Merman.render_svg(text, **options)` | `Renderer::render` with `RenderRequest::svg` |
-| `Dewasm::Merman.render_ascii(text, **options)` | `Renderer::render` with `RenderRequest::ascii` |
+| `Dewasm::Merman.render(text, format:, **options)` | `Renderer::render` with the format's `RenderRequest` |
 | `Dewasm::Merman.parse_metadata(text, **options)` | `Engine::parse_metadata_sync` |
 
-Options shared by `render_svg` and `render_ascii`, carrying the operation-level merman APIs:
+`format:` takes the merman-cli `--format` values compiled into this gem: `:svg` (the default), and `:ascii` or `:unicode` for terminal text starting from that charset's `AsciiRenderOptions` constructor.
+
+Options on `render` for every format, carrying the operation-level merman APIs:
 
 | Option | Default | merman |
 | --- | --- | --- |
@@ -187,7 +187,7 @@ Options shared by `render_svg` and `render_ascii`, carrying the operation-level 
 | `fixed_local_offset_minutes:` | `nil` | `RuntimePolicy#try_with_fixed_local_offset_minutes` |
 | `random:` | `Random` | the source of the render's hash seed |
 
-Options on `render_svg`, mirroring `SvgRequest`:
+Options on `render(format: :svg)`, mirroring `SvgRequest`:
 
 | Option | Default | merman |
 | --- | --- | --- |
@@ -195,7 +195,7 @@ Options on `render_svg`, mirroring `SvgRequest`:
 | `diagram_id:` | `nil` | `SvgRenderOptions#diagram_id` |
 | `viewbox_padding:` | merman's default | `SvgRenderOptions#viewbox_padding` |
 
-Options on `render_ascii`, mirroring the three parts of `AsciiRequest`:
+Options on `render(format: :ascii)` and `render(format: :unicode)`, mirroring the three parts of `AsciiRequest`:
 
 | Option | merman |
 | --- | --- |
@@ -256,14 +256,14 @@ Measured on macOS 26.6.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Generated `wasm_module.rb` | 49.0 MB |
 | Shipped `snapshot.bin.gz` | 1.3 MB |
 | Packaged `.gem` | 8.5 MB |
-| `require "dewasm/merman"` | 3.9 s |
-| Resident memory after `require` | 1148.6 MB |
+| `require "dewasm/merman"` | 3.7 s |
+| Resident memory after `require` | 1149.0 MB |
 | One module instantiation | 17 ms |
-| `render_svg`, flowchart | 55 ms |
-| `render_svg`, sequence diagram | 55 ms |
-| `render_svg`, railroad diagram | 51 ms |
-| `render_ascii`, flowchart | 114 ms |
-| `parse_metadata` | 85 ms |
+| `render` to SVG, flowchart | 54 ms |
+| `render` to SVG, sequence diagram | 56 ms |
+| `render` to SVG, railroad diagram | 50 ms |
+| `render` to terminal text, flowchart | 111 ms |
+| `parse_metadata` | 78 ms |
 <!-- measurements:end -->
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.

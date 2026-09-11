@@ -3,7 +3,7 @@
 require "test_helper"
 
 class MermanTest < Minitest::Test
-  def test_render_svg_covers_the_common_diagram_types
+  def test_render_covers_the_common_diagram_types
     {
       flowchart: Diagrams::FLOWCHART,
       sequence: Diagrams::SEQUENCE,
@@ -13,16 +13,20 @@ class MermanTest < Minitest::Test
       gantt: Diagrams::GANTT,
       mindmap: Diagrams::MINDMAP
     }.each do |name, text|
-      svg = Dewasm::Merman.render_svg(text)
+      svg = Dewasm::Merman.render(text)
 
       assert_kind_of String, svg, name.to_s
       assert svg.start_with?("<svg"), "#{name} did not render an SVG element"
     end
   end
 
-  def test_render_svg_pipelines
-    readable = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, pipeline: :readable)
-    resvg_safe = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, pipeline: :resvg_safe)
+  def test_render_rejects_an_unknown_format
+    assert_raises(ArgumentError) { Dewasm::Merman.render(Diagrams::FLOWCHART, format: :png) }
+  end
+
+  def test_svg_pipelines
+    readable = Dewasm::Merman.render(Diagrams::FLOWCHART, pipeline: :readable)
+    resvg_safe = Dewasm::Merman.render(Diagrams::FLOWCHART, pipeline: :resvg_safe)
 
     assert readable.start_with?("<svg")
     assert resvg_safe.start_with?("<svg")
@@ -30,20 +34,20 @@ class MermanTest < Minitest::Test
   end
 
   def test_diagram_id_appears_in_the_svg
-    svg = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, diagram_id: "my-diagram")
+    svg = Dewasm::Merman.render(Diagrams::FLOWCHART, diagram_id: "my-diagram")
 
     assert_includes svg, "my-diagram"
   end
 
   def test_site_config_changes_the_svg
-    default = Dewasm::Merman.render_svg(Diagrams::FLOWCHART)
-    themed = Dewasm::Merman.render_svg(Diagrams::FLOWCHART, site_config: { "theme" => "dark" })
+    default = Dewasm::Merman.render(Diagrams::FLOWCHART)
+    themed = Dewasm::Merman.render(Diagrams::FLOWCHART, site_config: { "theme" => "dark" })
 
     refute_equal default, themed
   end
 
-  def test_render_ascii_flowchart
-    text = Dewasm::Merman.render_ascii(Diagrams::FLOWCHART)
+  def test_render_unicode_flowchart
+    text = Dewasm::Merman.render(Diagrams::FLOWCHART, format: :unicode)
 
     refute_empty text
     assert_includes text, "Start"
@@ -51,55 +55,73 @@ class MermanTest < Minitest::Test
     assert_includes text, "─"
   end
 
-  def test_render_ascii_sequence
-    text = Dewasm::Merman.render_ascii(Diagrams::SEQUENCE)
+  def test_render_unicode_sequence
+    text = Dewasm::Merman.render(Diagrams::SEQUENCE, format: :unicode)
 
     refute_empty text
     assert_includes text, "Alice"
     assert_includes text, "Bob"
   end
 
-  def test_render_ascii_charset_ascii_avoids_box_drawing
-    text = Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, charset: :ascii)
+  def test_render_ascii_avoids_box_drawing
+    text = Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii)
 
     refute_includes text, "─"
     assert_includes text, "+"
   end
 
-  def test_render_ascii_option_kwargs_reach_the_renderer
-    narrow = Dewasm::Merman.render_ascii(Diagrams::SEQUENCE, sequence_participant_spacing: 2)
-    wide = Dewasm::Merman.render_ascii(Diagrams::SEQUENCE, sequence_participant_spacing: 20)
+  def test_charset_overrides_the_format_default
+    text = Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii, charset: :unicode)
+
+    assert_includes text, "─"
+  end
+
+  def test_ascii_option_kwargs_reach_the_renderer
+    narrow =
+      Dewasm::Merman.render(Diagrams::SEQUENCE, format: :unicode, sequence_participant_spacing: 2)
+    wide =
+      Dewasm::Merman.render(Diagrams::SEQUENCE, format: :unicode, sequence_participant_spacing: 20)
 
     refute_equal narrow, wide
   end
 
-  def test_render_ascii_rejects_an_unknown_option
+  def test_render_rejects_an_unknown_svg_option
+    assert_raises(ArgumentError) { Dewasm::Merman.render(Diagrams::FLOWCHART, no_such_option: 1) }
+  end
+
+  def test_render_rejects_an_unknown_ascii_option
     assert_raises(ArgumentError) do
-      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, no_such_option: 1)
+      Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii, no_such_option: 1)
     end
   end
 
-  def test_render_ascii_rejects_an_unknown_resources_option
+  def test_render_rejects_an_unknown_resources_option
     assert_raises(ArgumentError) do
-      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, resources: { no_such_limit: 1 })
+      Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii, resources: { no_such_limit: 1 })
     end
   end
 
-  def test_render_ascii_resources_limit_is_enforced
+  def test_resources_limit_is_enforced
     assert_raises(Dewasm::Merman::Error) do
-      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, resources: { max_grid_cells: 1 })
+      Dewasm::Merman.render(Diagrams::FLOWCHART, format: :ascii, resources: { max_grid_cells: 1 })
     end
   end
 
-  def test_render_ascii_viewport_trim_removes_trailing_spaces
+  def test_viewport_trim_removes_trailing_spaces
     text =
-      Dewasm::Merman.render_ascii(Diagrams::FLOWCHART, viewport: { trim: :trim_trailing_spaces })
+      Dewasm::Merman.render(
+        Diagrams::FLOWCHART,
+        format: :unicode,
+        viewport: {
+          trim: :trim_trailing_spaces
+        }
+      )
 
     assert(text.lines.none? { |line| line.chomp.end_with?(" ") })
   end
 
   def test_parse_options_lenient_renders_the_error_diagram
-    svg = Dewasm::Merman.render_svg("flowchart TD\n  ]]] ---", parse_options: :lenient)
+    svg = Dewasm::Merman.render("flowchart TD\n  ]]] ---", parse_options: :lenient)
 
     assert svg.start_with?("<svg")
   end
@@ -118,28 +140,29 @@ class MermanTest < Minitest::Test
     assert_equal "My Chart", metadata["title"]
   end
 
-  # merman reports undetectable text as an error, not as `Ok(None)`, so there is no input in this build for which the render functions return nil.
+  # merman reports undetectable text as an error, not as `Ok(None)`, so there is no input in this build for which render returns nil.
   def test_text_that_is_not_a_diagram_raises
-    error = assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg("not a diagram") }
+    error = assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render("not a diagram") }
 
     assert_includes error.message, "No Mermaid diagram type detected"
   end
 
   def test_broken_diagram_raises
     error =
-      assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_svg("flowchart TD\n  ]]] ---") }
+      assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render("flowchart TD\n  ]]] ---") }
 
     assert_includes error.message, "Diagram parse error"
   end
 
-  def test_ascii_rejects_an_unsupported_diagram_family
-    error = assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render_ascii(Diagrams::PIE) }
+  def test_text_formats_reject_an_unsupported_diagram_family
+    error =
+      assert_raises(Dewasm::Merman::Error) { Dewasm::Merman.render(Diagrams::PIE, format: :ascii) }
 
     assert_includes error.message, "does not support diagram type `pie`"
   end
 
   def test_render_svg_railroad
-    svg = Dewasm::Merman.render_svg(Diagrams::RAILROAD)
+    svg = Dewasm::Merman.render(Diagrams::RAILROAD)
 
     assert svg.start_with?("<svg")
     assert_includes svg, 'aria-roledescription="railroad"'
@@ -149,7 +172,7 @@ class MermanTest < Minitest::Test
   end
 
   def test_render_svg_railroad_ebnf
-    svg = Dewasm::Merman.render_svg(Diagrams::RAILROAD_EBNF)
+    svg = Dewasm::Merman.render(Diagrams::RAILROAD_EBNF)
 
     assert svg.start_with?("<svg")
     assert_includes svg, 'aria-roledescription="railroadEbnf"'
@@ -162,19 +185,19 @@ class MermanTest < Minitest::Test
     assert_equal "railroad", metadata["diagram_type"]
   end
 
-  def test_render_svg_is_deterministic
+  def test_render_is_deterministic
     [Diagrams::FLOWCHART, Diagrams::RAILROAD].each do |text|
-      first = Dewasm::Merman.render_svg(text, random: Random.new(42))
-      second = Dewasm::Merman.render_svg(text, random: Random.new(42))
+      first = Dewasm::Merman.render(text, random: Random.new(42))
+      second = Dewasm::Merman.render(text, random: Random.new(42))
 
       assert_equal first, second
     end
   end
 
-  def test_gantt_ascii_with_a_fixed_today_is_deterministic
+  def test_gantt_text_with_a_fixed_today_is_deterministic
     today = Date.new(2024, 1, 15)
-    first = Dewasm::Merman.render_ascii(Diagrams::GANTT, fixed_today: today)
-    second = Dewasm::Merman.render_ascii(Diagrams::GANTT, fixed_today: today)
+    first = Dewasm::Merman.render(Diagrams::GANTT, format: :unicode, fixed_today: today)
+    second = Dewasm::Merman.render(Diagrams::GANTT, format: :unicode, fixed_today: today)
 
     assert_equal first, second
     assert_includes first, "2024-01-01"
@@ -188,7 +211,7 @@ class MermanTest < Minitest::Test
       "\0" * size
     end
 
-    2.times { Dewasm::Merman.render_svg(Diagrams::FLOWCHART, random: counter) }
+    2.times { Dewasm::Merman.render(Diagrams::FLOWCHART, random: counter) }
 
     assert_equal 2, counter.calls
   end

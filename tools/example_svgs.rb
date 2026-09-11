@@ -25,7 +25,7 @@ module Dewasm
       module_function
 
       def render(text)
-        Merman.render_svg(text, pipeline: :resvg_safe)
+        Merman.render(text, pipeline: :resvg_safe)
       end
 
       def write_all

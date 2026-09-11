@@ -4,7 +4,7 @@ require "test_helper"
 require_relative "../tools/diagram_types"
 
 class DiagramTypesTest < Minitest::Test
-  # Regenerating the block verifies every cell against the module: the row list is the module's own export, each sample must be detected as its row's type and render to SVG, and the ASCII column is what render_ascii accepted.
+  # Regenerating the block verifies every cell against the module: the row list is the module's own export, each sample must be detected as its row's type and render to SVG, and the ASCII column is what the text formats accepted.
   def test_readme_diagram_type_table_matches_a_regenerated_one
     table = Dewasm::Merman::DiagramTypes.block
     readme = File.read(File.expand_path("../README.md", __dir__))

@@ -42,6 +42,9 @@ module Dewasm
     ].freeze
     ASCII_OPTIONS = (ASCII_ENUM_OPTIONS + ASCII_PLAIN_OPTIONS).freeze
 
+    SVG_ENUM_OPTIONS = %i[pipeline].freeze
+    SVG_OPTIONS = (SVG_ENUM_OPTIONS + %i[diagram_id viewbox_padding]).freeze
+
     RESOURCE_OPTIONS = %i[
       profile
       max_grid_cells
@@ -71,53 +74,22 @@ module Dewasm
 
     module_function
 
-    # Renders SVG, or nil when the text is not a recognized diagram.
-    # The pipeline is merman's SVG postprocess preset (:parity, :readable, or :resvg_safe); nil keeps merman's default of applying none.
-    def render_svg(
+    # Renders the diagram text, or returns nil when the text is not a recognized diagram.
+    # The format takes merman-cli's --format values: :svg renders SVG and takes the SvgRequest options, while :ascii and :unicode render terminal text in that charset and take the AsciiRequest parts (the AsciiRenderOptions fields directly, the AsciiResourcePolicy as resources:, and the AsciiViewportPolicy as viewport:).
+    def render(
       text,
-      pipeline: nil,
-      diagram_id: nil,
-      viewbox_padding: nil,
-      site_config: nil,
-      parse_options: nil,
-      fixed_today: nil,
-      fixed_local_offset_minutes: nil,
-      random: Random
-    )
-      options =
-        operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
-      options["svg"] = {
-        "pipeline" => pipeline&.to_s,
-        "diagram_id" => diagram_id,
-        "viewbox_padding" => viewbox_padding
-      }.compact
-      call("merman_render_svg", text, options, random)
-    end
-
-    # Renders terminal text, or nil when the text is not a recognized diagram.
-    # The keyword groups mirror merman's AsciiRequest: AsciiRenderOptions fields directly, the AsciiResourcePolicy as resources:, and the AsciiViewportPolicy as viewport:.
-    def render_ascii(
-      text,
-      resources: nil,
-      viewport: nil,
+      format: :svg,
       site_config: nil,
       parse_options: nil,
       fixed_today: nil,
       fixed_local_offset_minutes: nil,
       random: Random,
-      **ascii_options
+      **format_options
     )
-      unknown = ascii_options.keys - ASCII_OPTIONS
-      raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
-
       options =
         operation_options(site_config, parse_options, fixed_today, fixed_local_offset_minutes)
-      options["ascii"] = {
-        "options" => option_json(ascii_options, ASCII_ENUM_OPTIONS),
-        "resources" => policy_json(resources, RESOURCE_OPTIONS, "resources"),
-        "viewport" => policy_json(viewport, VIEWPORT_OPTIONS, "viewport")
-      }.compact
-      call("merman_render_ascii", text, options, random)
+      options["format"] = format_json(format, format_options)
+      call("merman_render", text, options, random)
     end
 
     # Returns the diagram type, front-matter config, effective config, and title.
@@ -135,6 +107,31 @@ module Dewasm
       }
     end
     private_class_method :operation_options
+
+    def format_json(format, format_options)
+      case format
+      when :svg
+        unknown = format_options.keys - SVG_OPTIONS
+        raise ArgumentError, "unknown svg options: #{unknown.join(", ")}" unless unknown.empty?
+
+        { "svg" => option_json(format_options, SVG_ENUM_OPTIONS) }
+      when :ascii, :unicode
+        resources = format_options.delete(:resources)
+        viewport = format_options.delete(:viewport)
+        unknown = format_options.keys - ASCII_OPTIONS
+        raise ArgumentError, "unknown ascii options: #{unknown.join(", ")}" unless unknown.empty?
+
+        request = {
+          "options" => option_json(format_options, ASCII_ENUM_OPTIONS),
+          "resources" => policy_json(resources, RESOURCE_OPTIONS, "resources"),
+          "viewport" => policy_json(viewport, VIEWPORT_OPTIONS, "viewport")
+        }.compact
+        { format.to_s => request }
+      else
+        raise ArgumentError, "unknown format #{format.inspect}"
+      end
+    end
+    private_class_method :format_json
 
     def policy_json(options, known, group)
       return nil if options.nil?
