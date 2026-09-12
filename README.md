@@ -239,17 +239,17 @@ Measured on macOS 26.6.2, Apple M1 Pro, Ruby 4.0.4, rendering a two-node flowcha
 | Quantity | Value |
 | --- | --- |
 | `wasm/merman.wasm` after `wasm-opt -Oz` | 11.3 MB |
-| Generated `wasm_module.rb` | 49.0 MB |
+| Generated `wasm_module.rb` | 48.8 MB |
 | Shipped `snapshot.bin.gz` | 1.3 MB |
-| Packaged `.gem` | 8.5 MB |
-| `require "dewasm/merman"` | 3.9 s |
-| Resident memory after `require` | 1149.1 MB |
+| Packaged `.gem` | 8.4 MB |
+| `require "dewasm/merman"` | 2.6 s |
+| Resident memory after `require` | 1090.2 MB |
 | One module instantiation | 17 ms |
-| `render` to SVG, flowchart | 58 ms |
-| `render` to SVG, sequence diagram | 57 ms |
-| `render` to SVG, railroad diagram | 51 ms |
-| `render` to terminal text, flowchart | 115 ms |
-| `parse_metadata` | 81 ms |
+| `render` to SVG, flowchart | 51 ms |
+| `render` to SVG, sequence diagram | 55 ms |
+| `render` to SVG, railroad diagram | 50 ms |
+| `render` to terminal text, flowchart | 110 ms |
+| `parse_metadata` | 78 ms |
 <!-- measurements:end -->
 
 The numbers move with the pinned merman version and with the dewasm revision used to generate the module, so rerun `rake measure` after changing either.

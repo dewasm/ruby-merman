@@ -26,7 +26,7 @@ jobs:
           ruby-version: '3.4'
       - name: Add the wasm32-wasip1 Rust target
         run: rustup target add wasm32-wasip1
-      # The Rakefile calls wasm-opt with --enable-bulk-memory, --enable-sign-ext, and --enable-nontrapping-float-to-int, all of which this release accepts.
+      # The Rakefile calls wasm-opt with --one-caller-inline-max-function-size, --enable-bulk-memory, --enable-sign-ext, and --enable-nontrapping-float-to-int, all of which this release accepts.
       - name: Install binaryen
         run: |
           curl -fsSL --retry 5 -o /tmp/binaryen.tar.gz \

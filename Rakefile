@@ -12,8 +12,10 @@ file WASM_SOURCE => FileList["wasm/src/*.rs", "wasm/Cargo.toml", "wasm/Cargo.loc
   sh "cargo build --release --target wasm32-wasip1 --manifest-path wasm/Cargo.toml"
 end
 
+# Without the one-caller cap, -Oz inlines the per-family render paths into single wasm functions of hundreds of KB, which dewasm turns into Ruby methods of over 2 MB; those defeat method-based JIT compilation and weigh on parsing, while the cap leaves the total code size unchanged.
 file WASM => WASM_SOURCE do
-  sh "wasm-opt -Oz --enable-bulk-memory --enable-sign-ext " \
+  sh "wasm-opt -Oz --one-caller-inline-max-function-size=200 " \
+       "--enable-bulk-memory --enable-sign-ext " \
        "--enable-nontrapping-float-to-int #{WASM_SOURCE} -o #{WASM}"
 end
 
