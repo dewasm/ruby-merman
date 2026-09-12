@@ -13,7 +13,8 @@ file WASM_SOURCE => FileList["wasm/src/*.rs", "wasm/Cargo.toml", "wasm/Cargo.loc
 end
 
 file WASM => WASM_SOURCE do
-  sh "wasm-opt -Oz --enable-bulk-memory --enable-sign-ext " \
+  sh "wasm-opt -Oz --one-caller-inline-max-function-size=200 " \
+       "--enable-bulk-memory --enable-sign-ext " \
        "--enable-nontrapping-float-to-int #{WASM_SOURCE} -o #{WASM}"
 end
 
